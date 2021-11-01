@@ -1,0 +1,21 @@
+{
+
+    "FormattingOptions": {
+        "newLine": "\n",
+        "useTabs": false,
+        "tabSize": 4,
+        "indentationSize": 4,
+
+        "NewLinesForBracesInTypes": true,
+        "NewLinesForBracesInMethods": true,
+        "NewLinesForBracesInProperties": true,
+        "NewLinesForBracesInAccessors": true,
+        "NewLinesForBracesInAnonymousMethods": true,
+        "NewLinesForBracesInControlBlocks": true,
+        "NewLinesForBracesInAnonymousTypes": true,
+
+        "NewLineForElse": true,
+        "NewLineForCatch": true,
+        "NewLineForFinally": true
+    }
+}
