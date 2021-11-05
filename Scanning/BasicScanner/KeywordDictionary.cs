@@ -11,6 +11,7 @@ namespace AilurusLang.Scanning.BasicScanner
 
             // Control Structures
             this.Add("if", TokenType.If);
+            this.Add("then", TokenType.Then);
             this.Add("else", TokenType.Else);
             this.Add("while", TokenType.While);
             this.Add("for", TokenType.For);

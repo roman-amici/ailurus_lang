@@ -58,6 +58,7 @@ namespace AilurusLang.Scanning
         Break,
         Continue,
         Return,
+        Then,
 
         // Values
         Null,
@@ -101,6 +102,9 @@ namespace AilurusLang.Scanning
         Void,
         Str,
         Bool,
+
+        // Semantic Types
+        EOF
     }
 }
 

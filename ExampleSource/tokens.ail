@@ -1,0 +1,13 @@
+module main 
+{
+    import * from "other.ail";
+
+    static fn main(args : int[])
+    {
+        let n : int = 10;
+        for let mut i : int = 0; i < n; i += 1 {
+            print(i);
+        }
+    }
+}
+

@@ -3,6 +3,14 @@ using System.Collections.Generic;
 
 namespace AilurusLang.Scanning.BasicScanner
 {
+    static class Extentions
+    {
+        public static string SubstringRange(this String str, int start, int end)
+        {
+            return str.Substring(start, end - start);
+        }
+    }
+
     class Scanner
     {
         readonly static KeywordDictionary Keywords = new KeywordDictionary();
@@ -71,14 +79,14 @@ namespace AilurusLang.Scanning.BasicScanner
 
         Token CreateToken(TokenType type)
         {
-            var text = Source.Substring(Start, Current);
-            return new Token(type, text, Line, Column);
+            var text = Source.SubstringRange(Start, Current);
+            return new Token(type, text, Line, Column, SourceFileName);
         }
 
         Token CreateToken(TokenType type, string literal)
         {
-            var text = Source.Substring(Start, Current);
-            return new Token(type, text, Line, Column, literal);
+            var text = Source.SubstringRange(Start, Current);
+            return new Token(type, text, Line, Column, SourceFileName, literal);
         }
 
         void ResetScanner()
@@ -108,7 +116,10 @@ namespace AilurusLang.Scanning.BasicScanner
                 try
                 {
                     var token = ScanToken();
-                    tokens.Add(token);
+                    if (token != null)
+                    {
+                        tokens.Add(token);
+                    }
                 }
                 catch (SyntaxError s)
                 {
@@ -294,7 +305,8 @@ namespace AilurusLang.Scanning.BasicScanner
             // Consume the closeing '"' char
             Advance();
 
-            var text = Source.Substring(Start, Current - 1);
+            // Skip the opening and closing '"'
+            var text = Source.SubstringRange(Start + 1, Current - 1);
             return CreateToken(TokenType.StringConstant, text);
         }
 
@@ -324,7 +336,7 @@ namespace AilurusLang.Scanning.BasicScanner
                 Advance();
             }
 
-            var identifier = Source.Substring(Start, Current);
+            var identifier = Source.SubstringRange(Start, Current);
 
             if (Keywords.ContainsKey(identifier))
             {
@@ -351,7 +363,7 @@ namespace AilurusLang.Scanning.BasicScanner
                 }
             }
 
-            var numberString = Source.Substring(Start, Current);
+            var numberString = Source.SubstringRange(Start, Current);
             return CreateToken(TokenType.Number, numberString);
         }
 
