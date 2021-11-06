@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using AilurusLang.DataType;
 using AilurusLang.Scanning;
 
 namespace AilurusLang.Parsing.AST
@@ -34,7 +35,7 @@ namespace AilurusLang.Parsing.AST
     {
         public Literal() : base(ExpressionType.Literal) { }
         public object Value { get; set; }
-        public object ValueType { get; set; }
+        public AilurusDataType ValueType { get; set; }
     }
 
     public class Grouping : ExpressionNode

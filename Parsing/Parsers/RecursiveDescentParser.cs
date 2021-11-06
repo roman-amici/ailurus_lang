@@ -384,8 +384,6 @@ namespace AilurusLang.Parsing.Parsers
         {
             // Assignment goes here eventually.
             return Or();
-
-            //throw new NotImplementedException();
         }
 
         #region Helper Functions
