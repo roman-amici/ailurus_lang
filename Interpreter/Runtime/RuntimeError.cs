@@ -21,5 +21,31 @@ namespace AilurusLang.Interpreter.Runtime
         {
             return $"{SourceFile}:{Line}:{Column} - {Message}";
         }
+
+        public static RuntimeError BinaryOperatorError(
+            AilurusValue left,
+            AilurusValue right,
+            Token t)
+        {
+            return new RuntimeError(
+                $"Unable to apply operator '{t.Lexeme}' to operands of type '{left.TypeName}' and '{right.TypeName}'",
+                t);
+        }
+
+        public static RuntimeError BinaryOperatorErrorFirstOp(
+            AilurusValue left,
+            Token t)
+        {
+            return new RuntimeError(
+                $"Unable to apply operator '{t.Lexeme}' to operand of type '{left.TypeName}",
+                t);
+        }
+
+        public static RuntimeError UnaryError(AilurusValue inner, Token t)
+        {
+            return new RuntimeError(
+                $"Unable to apply operator '{t.Lexeme}' to operand of type '{inner.TypeName}'", t);
+        }
+
     }
 }

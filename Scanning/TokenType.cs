@@ -1,3 +1,5 @@
+// To Add: ~,>>, <<, +=, *= etc
+
 namespace AilurusLang.Scanning
 {
     public enum TokenType
