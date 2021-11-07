@@ -13,6 +13,10 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
         public abstract AilurusValue EvalBitwiseOr(AilurusValue left, AilurusValue right, Binary b);
         public abstract AilurusValue EvalBitwiseXOr(AilurusValue left, AilurusValue right, Binary b);
         public abstract AilurusValue EvalEquality(AilurusValue left, AilurusValue right, Binary b);
+        public abstract AilurusValue EvalGreater(AilurusValue left, AilurusValue right, Binary b);
+        public abstract AilurusValue EvalGreaterEqual(AilurusValue left, AilurusValue right, Binary b);
+        public abstract AilurusValue EvalLess(AilurusValue left, AilurusValue right, Binary b);
+        public abstract AilurusValue EvalLessEqual(AilurusValue left, AilurusValue right, Binary b);
 
         public abstract AilurusValue EvalAnd(AilurusValue left, AilurusValue right, BinaryShortCircut b);
         public abstract AilurusValue EvalOr(AilurusValue left, AilurusValue right, BinaryShortCircut b);

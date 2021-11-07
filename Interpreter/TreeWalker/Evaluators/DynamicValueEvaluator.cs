@@ -201,6 +201,191 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
             return result;
         }
 
+        public override AilurusValue EvalGreater(AilurusValue left, AilurusValue right, Binary b)
+        {
+            DynamicValue result;
+            if (IsSignedInteger(left) && IsSignedInteger(right))
+            {
+                result = left.GetAs<int>() > right.GetAs<int>();
+            }
+            else if (IsSignedInteger(left) && IsUnsignedInteger(right))
+            {
+                result = left.GetAs<int>() > right.GetAs<uint>();
+            }
+            else if (IsUnsignedInteger(left) && IsSignedInteger(right))
+            {
+                result = left.GetAs<uint>() > right.GetAs<int>();
+            }
+            else if (IsUnsignedInteger(left) && IsUnsignedInteger(right))
+            {
+                result = left.GetAs<uint>() > right.GetAs<uint>();
+            }
+            else if (IsUnsignedInteger(left) && IsFloatingPoint(right))
+            {
+                result = left.GetAs<int>() > right.GetAs<double>();
+            }
+            else if (IsSignedInteger(left) && IsFloatingPoint(right))
+            {
+                result = left.GetAs<uint>() > right.GetAs<double>();
+            }
+            else if (IsFloatingPoint(left) && IsSignedInteger(right))
+            {
+                result = left.GetAs<double>() > right.GetAs<int>();
+            }
+            else if (IsFloatingPoint(left) && IsUnsignedInteger(right))
+            {
+                result = left.GetAs<double>() > right.GetAs<uint>();
+            }
+            else if (IsFloatingPoint(left) && IsFloatingPoint(right))
+            {
+                result = left.GetAs<double>() > right.GetAs<double>();
+            }
+            else
+            {
+                throw RuntimeError.BinaryOperatorError(left, right, b.Operator);
+            }
+
+            return result;
+        }
+        public override AilurusValue EvalGreaterEqual(AilurusValue left, AilurusValue right, Binary b)
+        {
+            DynamicValue result;
+            if (IsSignedInteger(left) && IsSignedInteger(right))
+            {
+                result = left.GetAs<int>() >= right.GetAs<int>();
+            }
+            else if (IsSignedInteger(left) && IsUnsignedInteger(right))
+            {
+                result = left.GetAs<int>() >= right.GetAs<uint>();
+            }
+            else if (IsUnsignedInteger(left) && IsSignedInteger(right))
+            {
+                result = left.GetAs<uint>() >= right.GetAs<int>();
+            }
+            else if (IsUnsignedInteger(left) && IsUnsignedInteger(right))
+            {
+                result = left.GetAs<uint>() >= right.GetAs<uint>();
+            }
+            else if (IsUnsignedInteger(left) && IsFloatingPoint(right))
+            {
+                result = left.GetAs<int>() >= right.GetAs<double>();
+            }
+            else if (IsSignedInteger(left) && IsFloatingPoint(right))
+            {
+                result = left.GetAs<uint>() >= right.GetAs<double>();
+            }
+            else if (IsFloatingPoint(left) && IsSignedInteger(right))
+            {
+                result = left.GetAs<double>() >= right.GetAs<int>();
+            }
+            else if (IsFloatingPoint(left) && IsUnsignedInteger(right))
+            {
+                result = left.GetAs<double>() >= right.GetAs<uint>();
+            }
+            else if (IsFloatingPoint(left) && IsFloatingPoint(right))
+            {
+                result = left.GetAs<double>() >= right.GetAs<double>();
+            }
+            else
+            {
+                throw RuntimeError.BinaryOperatorError(left, right, b.Operator);
+            }
+
+            return result;
+        }
+        public override AilurusValue EvalLess(AilurusValue left, AilurusValue right, Binary b)
+        {
+            DynamicValue result;
+            if (IsSignedInteger(left) && IsSignedInteger(right))
+            {
+                result = left.GetAs<int>() < right.GetAs<int>();
+            }
+            else if (IsSignedInteger(left) && IsUnsignedInteger(right))
+            {
+                result = left.GetAs<int>() < right.GetAs<uint>();
+            }
+            else if (IsUnsignedInteger(left) && IsSignedInteger(right))
+            {
+                result = left.GetAs<uint>() < right.GetAs<int>();
+            }
+            else if (IsUnsignedInteger(left) && IsUnsignedInteger(right))
+            {
+                result = left.GetAs<uint>() < right.GetAs<uint>();
+            }
+            else if (IsUnsignedInteger(left) && IsFloatingPoint(right))
+            {
+                result = left.GetAs<int>() < right.GetAs<double>();
+            }
+            else if (IsSignedInteger(left) && IsFloatingPoint(right))
+            {
+                result = left.GetAs<uint>() < right.GetAs<double>();
+            }
+            else if (IsFloatingPoint(left) && IsSignedInteger(right))
+            {
+                result = left.GetAs<double>() < right.GetAs<int>();
+            }
+            else if (IsFloatingPoint(left) && IsUnsignedInteger(right))
+            {
+                result = left.GetAs<double>() < right.GetAs<uint>();
+            }
+            else if (IsFloatingPoint(left) && IsFloatingPoint(right))
+            {
+                result = left.GetAs<double>() < right.GetAs<double>();
+            }
+            else
+            {
+                throw RuntimeError.BinaryOperatorError(left, right, b.Operator);
+            }
+
+            return result;
+        }
+        public override AilurusValue EvalLessEqual(AilurusValue left, AilurusValue right, Binary b)
+        {
+            DynamicValue result;
+            if (IsSignedInteger(left) && IsSignedInteger(right))
+            {
+                result = left.GetAs<int>() <= right.GetAs<int>();
+            }
+            else if (IsSignedInteger(left) && IsUnsignedInteger(right))
+            {
+                result = left.GetAs<int>() <= right.GetAs<uint>();
+            }
+            else if (IsUnsignedInteger(left) && IsSignedInteger(right))
+            {
+                result = left.GetAs<uint>() <= right.GetAs<int>();
+            }
+            else if (IsUnsignedInteger(left) && IsUnsignedInteger(right))
+            {
+                result = left.GetAs<uint>() <= right.GetAs<uint>();
+            }
+            else if (IsUnsignedInteger(left) && IsFloatingPoint(right))
+            {
+                result = left.GetAs<int>() <= right.GetAs<double>();
+            }
+            else if (IsSignedInteger(left) && IsFloatingPoint(right))
+            {
+                result = left.GetAs<uint>() <= right.GetAs<double>();
+            }
+            else if (IsFloatingPoint(left) && IsSignedInteger(right))
+            {
+                result = left.GetAs<double>() <= right.GetAs<int>();
+            }
+            else if (IsFloatingPoint(left) && IsUnsignedInteger(right))
+            {
+                result = left.GetAs<double>() <= right.GetAs<uint>();
+            }
+            else if (IsFloatingPoint(left) && IsFloatingPoint(right))
+            {
+                result = left.GetAs<double>() <= right.GetAs<double>();
+            }
+            else
+            {
+                throw RuntimeError.BinaryOperatorError(left, right, b.Operator);
+            }
+
+            return result;
+        }
+
         public override AilurusValue EvalMinus(AilurusValue left, AilurusValue right, Binary b)
         {
             DynamicValue result;

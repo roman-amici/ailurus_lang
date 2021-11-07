@@ -29,13 +29,14 @@ namespace AilurusLang.Parsing.AST
             NodeType = NodeType.Expression;
             ExprType = exprType;
         }
+
+        public AilurusDataType DataType { get; set; }
     }
 
     public class Literal : ExpressionNode
     {
         public Literal() : base(ExpressionType.Literal) { }
         public object Value { get; set; }
-        public AilurusDataType ValueType { get; set; }
     }
 
     public class Grouping : ExpressionNode

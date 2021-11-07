@@ -15,4 +15,10 @@ namespace AilurusLang.Parsing.AST
         public Token SourceStart { get; set; }
         public NodeType NodeType { get; set; }
     }
+
+    public class TypeName
+    {
+        public Token Name { get; set; }
+        public bool IsPtr { get; set; }
+    }
 }

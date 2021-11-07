@@ -21,6 +21,13 @@ namespace AilurusLang.Parsing.Parsers
         Token Peek { get => IsAtEnd ? EofToken : Tokens[Current]; }
         Token Previous { get => Tokens[Current - 1]; }
 
+        void Reset()
+        {
+            Current = 0;
+            IsValid = true;
+            Tokens = null;
+        }
+
         // Error Handling
         void RaiseError(Token token, string errorMessage)
         {
@@ -63,27 +70,27 @@ namespace AilurusLang.Parsing.Parsers
             return false;
         }
 
-        void Consume(TokenType type, string errorMessage)
+        Token Consume(TokenType type, string errorMessage)
         {
             if (!Check(type))
             {
                 RaiseError(Peek, errorMessage);
             }
+            return Advance();
         }
 
-        public ExpressionNode ParseExpression(List<Token> tokens)
+        public List<StatementNode> Parse(List<Token> tokens)
         {
+            Reset();
             Tokens = tokens;
-            try
+
+            var statements = new List<StatementNode>();
+            while (!IsAtEnd)
             {
-                return Expression();
-            }
-            catch (ParsingError error)
-            {
-                Console.WriteLine(error);
+                statements.Add(ParseStatement());
             }
 
-            return null;
+            return statements;
         }
 
         // Base rule for things like identifiers and constants
@@ -99,7 +106,8 @@ namespace AilurusLang.Parsing.Parsers
                 return new Literal()
                 {
                     Value = Previous.Identifier,
-                    ValueType = StringType.Instance,
+                    DataType = StringType.Instance,
+                    SourceStart = Previous,
                 };
             }
             if (Match(TokenType.False))
@@ -107,7 +115,8 @@ namespace AilurusLang.Parsing.Parsers
                 return new Literal()
                 {
                     Value = false,
-                    ValueType = BooleanType.Instance
+                    DataType = BooleanType.Instance,
+                    SourceStart = Previous
                 };
             }
             if (Match(TokenType.True))
@@ -115,7 +124,8 @@ namespace AilurusLang.Parsing.Parsers
                 return new Literal()
                 {
                     Value = true,
-                    ValueType = BooleanType.Instance
+                    DataType = BooleanType.Instance,
+                    SourceStart = Previous
                 };
             }
             if (Match(TokenType.Null))
@@ -123,17 +133,20 @@ namespace AilurusLang.Parsing.Parsers
                 return new Literal()
                 {
                     Value = null,
-                    ValueType = NullType.Instance
+                    DataType = NullType.Instance,
+                    SourceStart = Previous
                 };
             }
 
             // Grouping
             if (Match(TokenType.LeftParen))
             {
+                var sourceStart = Previous;
                 var inner = Expression();
                 return new Grouping()
                 {
-                    Inner = inner
+                    Inner = inner,
+                    SourceStart = sourceStart
                 };
             }
 
@@ -149,7 +162,8 @@ namespace AilurusLang.Parsing.Parsers
                 {
                     return new Variable()
                     {
-                        Name = name
+                        Name = name,
+                        SourceStart = Previous
                     };
                 }
             }
@@ -165,6 +179,7 @@ namespace AilurusLang.Parsing.Parsers
 
         StructInitialization StructInitializer(Token name)
         {
+            var sourceStart = Previous;
             Consume(TokenType.LeftBrace, "Expected '{' after struct name");
 
             var initializers = new List<(Token, ExpressionNode)>();
@@ -186,12 +201,14 @@ namespace AilurusLang.Parsing.Parsers
             return new StructInitialization()
             {
                 StructName = name,
-                Initializers = initializers
+                Initializers = initializers,
+                SourceStart = sourceStart
             };
         }
 
         ExpressionNode IfExpression()
         {
+            var sourceStart = Previous;
             var predicate = Or();
             Consume(TokenType.Then, "Expected 'then' in if expression");
             var trueExpr = Expression();
@@ -202,7 +219,8 @@ namespace AilurusLang.Parsing.Parsers
             {
                 Predicate = predicate,
                 TrueExpr = trueExpr,
-                FalseExpr = falseExpr
+                FalseExpr = falseExpr,
+                SourceStart = sourceStart
             };
         }
 
@@ -220,7 +238,8 @@ namespace AilurusLang.Parsing.Parsers
                 return new Unary()
                 {
                     Operator = op,
-                    Expr = expr
+                    Expr = expr,
+                    SourceStart = Previous
                 };
             }
 
@@ -244,7 +263,8 @@ namespace AilurusLang.Parsing.Parsers
                 {
                     Operator = op,
                     Left = left,
-                    Right = right
+                    Right = right,
+                    SourceStart = op
                 };
             }
 
@@ -263,7 +283,8 @@ namespace AilurusLang.Parsing.Parsers
                 {
                     Operator = op,
                     Left = left,
-                    Right = right
+                    Right = right,
+                    SourceStart = op
                 };
             }
 
@@ -287,7 +308,8 @@ namespace AilurusLang.Parsing.Parsers
                 {
                     Operator = op,
                     Left = left,
-                    Right = right
+                    Right = right,
+                    SourceStart = op
                 };
             }
 
@@ -311,7 +333,8 @@ namespace AilurusLang.Parsing.Parsers
                 {
                     Operator = op,
                     Left = left,
-                    Right = right
+                    Right = right,
+                    SourceStart = op
                 };
             }
 
@@ -331,7 +354,8 @@ namespace AilurusLang.Parsing.Parsers
                 {
                     Operator = op,
                     Left = left,
-                    Right = right
+                    Right = right,
+                    SourceStart = op
                 };
             }
 
@@ -352,7 +376,8 @@ namespace AilurusLang.Parsing.Parsers
                 {
                     Operator = op,
                     Left = left,
-                    Right = right
+                    Right = right,
+                    SourceStart = op
                 };
             }
 
@@ -373,7 +398,8 @@ namespace AilurusLang.Parsing.Parsers
                 {
                     Operator = op,
                     Left = left,
-                    Right = right
+                    Right = right,
+                    SourceStart = op
                 };
             }
 
@@ -386,6 +412,92 @@ namespace AilurusLang.Parsing.Parsers
             return Or();
         }
 
+        #region Declarations
+
+        TypeName TypeName()
+        {
+            var name = Consume(TokenType.Identifier, "Expected type name after ':'");
+            bool isPtr = false;
+            if (Match(TokenType.Ptr))
+            {
+                isPtr = true;
+            }
+
+            return new TypeName()
+            {
+                Name = name,
+                IsPtr = isPtr
+            };
+        }
+
+        #endregion
+
+        #region Statements
+
+        StatementNode ExpressionStatement()
+        {
+            var sourceStart = Peek;
+            var expr = Expression();
+
+            Consume(TokenType.Semicolon, "Expected ';' after expression");
+
+            return new ExpressionStatement()
+            {
+                Expr = expr,
+                SourceStart = sourceStart
+            };
+        }
+
+        StatementNode LetStatement()
+        {
+            TypeName assertedType = null;
+            ExpressionNode initializer = null;
+            bool isMutable = false;
+
+            var name = Consume(TokenType.Identifier, "Expected name after 'let'");
+
+            // TODO: Parse static and volatile as well
+            if (Match(TokenType.Mut))
+            {
+                isMutable = true;
+            }
+
+            if (Match(TokenType.Colon))
+            {
+                assertedType = TypeName();
+            }
+
+            if (Match(TokenType.Equal))
+            {
+                initializer = Expression();
+            }
+
+            if (initializer == null && assertedType == null)
+            {
+                throw new ParsingError(name, "Variable delaration must have either an explicit type or an assignment statement.");
+            }
+
+            return new LetStatement()
+            {
+                Name = name,
+                Initializer = initializer,
+                AssertedType = assertedType,
+                IsMutable = isMutable
+            };
+        }
+
+        StatementNode ParseStatement()
+        {
+            if (Match(TokenType.Let))
+            {
+                return LetStatement();
+            }
+
+            return ExpressionStatement();
+        }
+
+        #endregion
+
         #region Helper Functions
 
         Literal DetermineNumberLiteral(Token token)
@@ -397,7 +509,8 @@ namespace AilurusLang.Parsing.Parsers
                 return new Literal()
                 {
                     Value = value,
-                    ValueType = DoubleType.Instance,
+                    DataType = DoubleType.Instance,
+                    SourceStart = token
                 };
             }
             else
@@ -406,7 +519,8 @@ namespace AilurusLang.Parsing.Parsers
                 return new Literal()
                 {
                     Value = value,
-                    ValueType = IntType.InstanceSigned,
+                    DataType = IntType.InstanceSigned,
+                    SourceStart = token
                 };
             }
         }

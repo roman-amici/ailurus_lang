@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using AilurusLang.Interpreter.TreeWalker;
+using AilurusLang.Interpreter.TreeWalker.Evaluators;
 using AilurusLang.Parsing.Parsers;
 using AilurusLang.Scanning.BasicScanner;
 
@@ -25,7 +26,7 @@ namespace AilurusLang
         {
             var scanner = new Scanner();
             var parser = new RecursiveDescentParser();
-            var treeWalker = new TreeWalker();
+            var treeWalker = new TreeWalker(new DynamicValueEvaluator());
 
             var source = File.ReadAllText(fileName);
 

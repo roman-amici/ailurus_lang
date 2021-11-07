@@ -104,7 +104,22 @@ namespace AilurusLang.Interpreter.TreeWalker
 
         AilurusValue EvalIfExpression(IfExpression ifExpr)
         {
-            throw new NotImplementedException();
+            var predicate = EvalExpression(ifExpr.Predicate);
+            if (predicate.AssertType(BooleanType.Instance))
+            {
+                if (predicate.GetAs<bool>())
+                {
+                    return EvalExpression(ifExpr.TrueExpr);
+                }
+                else
+                {
+                    return EvalExpression(ifExpr.FalseExpr);
+                }
+            }
+            else
+            {
+                throw new RuntimeError("Predicate in 'If' expression must be of type 'bool'", ifExpr.SourceStart);
+            }
         }
     }
 }
