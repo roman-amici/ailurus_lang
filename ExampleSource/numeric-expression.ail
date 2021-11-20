@@ -1,1 +1,4 @@
-false || true
+3.0 + 4;
+-4;
+if 3 < 4 then true else false;
+3 & 4.0;

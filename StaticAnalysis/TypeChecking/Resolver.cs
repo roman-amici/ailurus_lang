@@ -280,6 +280,15 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 case ExpressionType.Binary:
                 case ExpressionType.BinaryShortCircut:
                     return ResolveBinary((BinaryLike)expr);
+                case ExpressionType.Unary:
+                    return ResolveUnary((Unary)expr);
+                case ExpressionType.Grouping:
+                    var grouping = (Grouping)expr;
+                    return ResolveExpression(grouping.Inner);
+                case ExpressionType.IfExpression:
+                    return ResolveIfExpression((IfExpression)expr);
+                default:
+                    throw new NotImplementedException();
             }
         }
 
@@ -305,7 +314,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         void BinaryError(BinaryLike b, AilurusDataType t1, AilurusDataType t2)
         {
             var errorMessage = $"Found values of type {t1.DataTypeName} and {t2.DataTypeName}"
-            + $"which are incompatible with operator {b.Operator.Type}";
+            + $" which are incompatible with operator {b.Operator.Lexeme}";
             Error(errorMessage, b.Operator);
         }
 
@@ -372,12 +381,94 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                         BinaryError(binary, t1, t2);
                     }
                     break;
+                case TokenType.Less:
+                case TokenType.LessEqual:
+                case TokenType.Greater:
+                case TokenType.GreaterEqual:
+                    if (t1 is NumericType && t2 is NumericType)
+                    {
+                        binary.DataType = BooleanType.Instance;
+                    }
+                    else
+                    {
+                        binary.DataType = ErrorType.Instance;
+                        BinaryError(binary, t1, t2);
+                    }
+                    break;
                 default:
                     throw new NotImplementedException();
 
             }
 
             return binary.DataType;
+        }
+
+        void UnaryError(Unary unary, AilurusDataType inner)
+        {
+            Error($"Found type {inner.DataTypeName} which is incompatible with operator {unary.Operator.Lexeme}", unary.Operator);
+        }
+
+        AilurusDataType ResolveUnary(Unary unary)
+        {
+            var inner = ResolveExpression(unary.Expr);
+            switch (unary.Operator.Type)
+            {
+                case TokenType.Minus:
+                    if (inner is NumericType)
+                    {
+                        if (inner is IntegralType i)
+                        {
+                            unary.DataType = i.SignedInstance;
+                        }
+                        else
+                        {
+                            unary.DataType = inner;
+                        }
+                    }
+                    else
+                    {
+                        UnaryError(unary, inner);
+                    }
+                    break;
+                case TokenType.Bang:
+                    if (inner is BooleanType)
+                    {
+                        unary.DataType = BooleanType.Instance;
+                    }
+                    else
+                    {
+                        UnaryError(unary, inner);
+                    }
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+
+            return unary.DataType;
+        }
+
+        AilurusDataType ResolveIfExpression(IfExpression ifExpr)
+        {
+            var pred = ResolveExpression(ifExpr.Predicate);
+            var t = ResolveExpression(ifExpr.TrueExpr);
+            var f = ResolveExpression(ifExpr.FalseExpr);
+
+            if (!(pred is BooleanType))
+            {
+                Error($"Expected type bool in if expression but found type {pred.DataTypeName}", ifExpr.Predicate.SourceStart);
+            }
+
+            if (TypesAreEqual(t, f))
+            {
+                ifExpr.DataType = t;
+            }
+            else
+            {
+                Error($"Both sides of an if expression must be the same type, but found {t} and {f}", ifExpr.TrueExpr.SourceStart);
+                ifExpr.DataType = ErrorType.Instance;
+            }
+
+            return ifExpr.DataType;
         }
 
         #endregion

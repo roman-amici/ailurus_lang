@@ -15,7 +15,7 @@ namespace AilurusLang.Parsing.Parsers
         List<Token> Tokens { get; set; }
         int Current { get; set; }
 
-        bool IsValid { get; set; }
+        public bool IsValid { get; set; }
 
         bool IsAtEnd { get => Current >= Tokens.Count; }
         Token Peek { get => IsAtEnd ? EofToken : Tokens[Current]; }

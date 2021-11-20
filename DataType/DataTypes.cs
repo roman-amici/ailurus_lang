@@ -30,14 +30,15 @@ namespace AilurusLang.DataType
     public abstract class IntegralType : NumericType
     {
         public bool Unsigned { get; set; } = false;
+
+        public abstract IntegralType SignedInstance { get; }
     }
 
     public class ByteType : IntegralType
     {
         public static readonly ByteType InstanceSigned = new ByteType();
         public static readonly ByteType InstanceUnsigned = new ByteType() { Unsigned = true };
-
-
+        public override IntegralType SignedInstance => InstanceSigned;
         public override string DataTypeName => Unsigned ? "ubyte" : "byte";
     }
 
@@ -45,6 +46,7 @@ namespace AilurusLang.DataType
     {
         public static readonly ShortType InstanceSigned = new ShortType();
         public static readonly ShortType InstanceUnsigned = new ShortType() { Unsigned = true };
+        public override IntegralType SignedInstance => InstanceSigned;
         public override string DataTypeName => Unsigned ? "ushort" : "short";
     }
 
@@ -52,6 +54,7 @@ namespace AilurusLang.DataType
     {
         public static readonly IntType InstanceSigned = new IntType();
         public static readonly IntType InstanceUnsigned = new IntType() { Unsigned = true };
+        public override IntegralType SignedInstance => InstanceSigned;
         public override string DataTypeName => Unsigned ? "uint" : "int";
     }
 

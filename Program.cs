@@ -2,8 +2,10 @@
 using System.IO;
 using AilurusLang.Interpreter.TreeWalker;
 using AilurusLang.Interpreter.TreeWalker.Evaluators;
+using AilurusLang.Parsing.AST;
 using AilurusLang.Parsing.Parsers;
 using AilurusLang.Scanning.BasicScanner;
+using AilurusLang.StaticAnalysis.TypeChecking;
 
 namespace AilurusLang
 {
@@ -26,16 +28,28 @@ namespace AilurusLang
         {
             var scanner = new Scanner();
             var parser = new RecursiveDescentParser();
+            var resolver = new Resolver();
             var treeWalker = new TreeWalker(new DynamicValueEvaluator());
 
             var source = File.ReadAllText(fileName);
 
             var tokens = scanner.Scan(source, fileName);
-            var expr = parser.ParseExpression(tokens);
-
-            var value = treeWalker.EvalExpression(expr);
-
-            Console.WriteLine(value);
+            var statements = parser.Parse(tokens);
+            if (parser.IsValid)
+            {
+                resolver.ResolveStatements(statements);
+                if (!resolver.HadError)
+                {
+                    foreach (var stmt in statements)
+                    {
+                        if (stmt is ExpressionStatement e)
+                        {
+                            var value = treeWalker.EvalExpression(e.Expr);
+                            Console.WriteLine($"{value} : {e.Expr.DataType.DataTypeName}");
+                        }
+                    }
+                }
+            }
         }
     }
 }
