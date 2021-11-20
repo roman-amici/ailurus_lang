@@ -27,6 +27,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
     {
         public Dictionary<string, TypeDeclaration> TypeDeclarations { get; set; } = new Dictionary<string, TypeDeclaration>();
         public Dictionary<string, VariableDeclaration> VariableDeclarations { get; set; } = new Dictionary<string, VariableDeclaration>();
+        public Dictionary<string, FunctionDeclaration> FunctionDeclarations { get; set; } = new Dictionary<string, FunctionDeclaration>();
     }
 
     public class BlockScope

@@ -82,7 +82,9 @@ namespace AilurusLang.Parsing.AST
     public class Variable : ExpressionNode
     {
         public Variable() : base(ExpressionType.Variable) { }
+        public Variable(ExpressionType type) : base(type) { }
         public Token Name { get; set; }
+        public Declaration Resolution { get; set; }
     }
 
     public class Assign : ExpressionNode

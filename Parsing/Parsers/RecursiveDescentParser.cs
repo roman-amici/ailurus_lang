@@ -406,10 +406,38 @@ namespace AilurusLang.Parsing.Parsers
             return left;
         }
 
+        ExpressionNode Assignment()
+        {
+            var expr = Or();
+
+            if (Match(TokenType.Equal))
+            {
+                var equalsToken = Previous;
+                var rvalue = Assignment(); // right associative
+
+                if (expr is Variable v)
+                {
+                    return new Assign()
+                    {
+                        Name = v.Name,
+                        Assignment = rvalue,
+                        SourceStart = equalsToken
+                    };
+                }
+                // Todo: Struct assignment
+                else
+                {
+                    RaiseError(equalsToken, $"Cannot assign to {expr.SourceStart.Lexeme}.");
+                }
+            }
+
+            return expr;
+        }
+
         ExpressionNode Expression()
         {
             // Assignment goes here eventually.
-            return Or();
+            return Assignment();
         }
 
         #region Declarations

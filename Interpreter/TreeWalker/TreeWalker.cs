@@ -5,6 +5,7 @@ using AilurusLang.Interpreter.Runtime;
 using AilurusLang.Interpreter.TreeWalker.Evaluators;
 using AilurusLang.Parsing.AST;
 using AilurusLang.Scanning;
+using AilurusLang.StaticAnalysis.TypeChecking;
 
 namespace AilurusLang.Interpreter.TreeWalker
 {
@@ -12,10 +13,42 @@ namespace AilurusLang.Interpreter.TreeWalker
     {
         public Evaluator Evaluator { get; set; }
 
+        public List<TreeWalkerEnvironment> Environments { get; set; } = new List<TreeWalkerEnvironment>();
+
         public TreeWalker(Evaluator evaluator)
         {
             Evaluator = evaluator;
+            Environments.Add(new TreeWalkerEnvironment());
         }
+
+        #region Statements
+
+        public void EvalStatement(StatementNode stmt)
+        {
+            switch (stmt)
+            {
+                case ExpressionStatement expressionStatement:
+                    EvalExpression(expressionStatement.Expr);
+                    break;
+                case LetStatement letStatement:
+                    EvalLetStatement(letStatement);
+                    break;
+            }
+        }
+
+        void EvalLetStatement(LetStatement stmt)
+        {
+            AilurusValue initializer = null;
+            if (stmt.Initializer != null)
+            {
+                initializer = EvalExpression(stmt.Initializer);
+            }
+
+        }
+
+        #endregion
+
+        #region Expressions
 
         public AilurusValue EvalExpression(ExpressionNode expr)
         {
@@ -121,5 +154,7 @@ namespace AilurusLang.Interpreter.TreeWalker
                 throw new RuntimeError("Predicate in 'If' expression must be of type 'bool'", ifExpr.SourceStart);
             }
         }
+
+        #endregion
     }
 }

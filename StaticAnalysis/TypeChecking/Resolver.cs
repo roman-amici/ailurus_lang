@@ -38,17 +38,18 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         }
 
         #region Scope Management
-        public VariableDeclaration FindVariableInCurrentScope(string name)
+        public bool CanDeclarName(string name)
         {
             if (Scopes.Count == 0)
             {
-                if (ModuleScope.VariableDeclarations.ContainsKey(name))
+                if (ModuleScope.VariableDeclarations.ContainsKey(name) ||
+                    ModuleScope.FunctionDeclarations.ContainsKey(name))
                 {
-                    return ModuleScope.VariableDeclarations[name];
+                    return false;
                 }
                 else
                 {
-                    return null;
+                    return true;
                 }
             }
             else
@@ -56,13 +57,36 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 var scope = Scopes[^1];
                 if (scope.VariableDeclarations.ContainsKey(name))
                 {
-                    return scope.VariableDeclarations[name];
+                    return false;
                 }
                 else
                 {
-                    return null;
+                    return true;
                 }
             }
+        }
+
+        public Declaration FindVariableDeclaration(string name)
+        {
+            foreach (var scope in Scopes)
+            {
+                if (scope.VariableDeclarations.ContainsKey(name))
+                {
+                    return scope.VariableDeclarations[name];
+                }
+            }
+
+            if (ModuleScope.VariableDeclarations.ContainsKey(name))
+            {
+                return ModuleScope.VariableDeclarations[name];
+            }
+
+            if (ModuleScope.FunctionDeclarations.ContainsKey(name))
+            {
+                return ModuleScope.FunctionDeclarations[name];
+            }
+
+            return null;
         }
 
         AilurusDataType LookupTypeByName(string name)
@@ -82,12 +106,18 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             return null;
         }
 
-        void AddVariableToCurrentScope(Token name, AilurusDataType type)
+        VariableDeclaration AddVariableToCurrentScope(
+            Token name,
+            AilurusDataType type,
+            bool isMutable,
+            bool initialized)
         {
             var declaration = new VariableDeclaration()
             {
                 Name = name.Lexeme,
-                Type = type
+                Type = type,
+                IsMutable = isMutable,
+                IsInitialized = initialized
             };
 
             if (Scopes.Count > 0)
@@ -98,6 +128,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             {
                 ModuleScope.VariableDeclarations.Add(declaration.Name, declaration);
             }
+
+            return declaration;
         }
 
         #endregion
@@ -287,9 +319,39 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     return ResolveExpression(grouping.Inner);
                 case ExpressionType.IfExpression:
                     return ResolveIfExpression((IfExpression)expr);
+                case ExpressionType.Variable:
+                    return ResolveVariable((Variable)expr);
                 default:
                     throw new NotImplementedException();
             }
+        }
+
+        AilurusDataType ResolveVariable(Variable expr)
+        {
+            var declaration = FindVariableDeclaration(expr.Name.Lexeme);
+
+            if (declaration == null)
+            {
+                Error($"No variable was found with name {expr.Name.Lexeme}", expr.SourceStart);
+                return ErrorType.Instance;
+            }
+
+            expr.Resolution = declaration;
+            if (declaration is VariableDeclaration v)
+            {
+                if (!v.IsInitialized)
+                {
+                    Error($"Variable '{expr.Name.Lexeme}' referenced before assignment.", expr.Name);
+                }
+                return v.Type;
+            }
+            else if (declaration is FunctionDeclaration f)
+            {
+                return f.FunctionType;
+            }
+
+            // Unreachable
+            return ErrorType.Instance;
         }
 
         AilurusDataType ResolveLiteral(Literal literal)
@@ -477,7 +539,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         #region Resolve Statements
         void ResolveLet(LetStatement let)
         {
-            if (FindVariableInCurrentScope(let.Name.Lexeme) != null)
+            if (CanDeclarName(let.Name.Lexeme))
             {
                 Error($"Variable with name '{let.Name.Lexeme}' already exists in this scope.", let.SourceStart);
                 return;
@@ -494,7 +556,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 }
             }
 
-            if (let.Initializer != null)
+            var initialized = let.Initializer != null;
+            if (initialized)
             {
                 initializerType = ResolveExpression(let.Initializer);
             }
@@ -511,7 +574,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 return;
             }
 
-            AddVariableToCurrentScope(let.Name, assertedType);
+            AddVariableToCurrentScope(let.Name, assertedType, let.IsMutable, initialized);
 
         }
 

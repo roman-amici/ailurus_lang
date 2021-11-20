@@ -15,5 +15,12 @@ namespace AilurusLang.Parsing.AST
         public AilurusDataType Type { get; set; }
         public string Name { get; set; }
         public bool IsMutable { get; set; }
+        public bool IsInitialized { get; set; }
+    }
+
+    public class FunctionDeclaration : Declaration
+    {
+        public string FunctionName { get; set; }
+        public FunctionType FunctionType { get; set; }
     }
 }
