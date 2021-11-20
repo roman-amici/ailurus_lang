@@ -516,7 +516,7 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
 
         public override AilurusValue EvalLiteral(Literal literal)
         {
-            return ValueFromDatatype(literal.Value, literal.ValueType);
+            return ValueFromDatatype(literal.Value, literal.DataType);
         }
 
         AilurusValue ValueFromDatatype(object Value, AilurusDataType type)

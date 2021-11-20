@@ -6,7 +6,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 {
     public class StandardScope
     {
-        Dictionary<string, Declaration> TypeDeclarations { get; set; }
+        public Dictionary<string, Declaration> TypeDeclarations { get; set; }
 
         public StandardScope()
         {
@@ -25,12 +25,12 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
     public class ModuleScope
     {
-        Dictionary<string, TypeDeclaration> TypeDeclarations { get; set; } = new Dictionary<string, TypeDeclaration>();
-        Dictionary<string, VariableDeclaration> VariableDeclarations { get; set; } = new Dictionary<string, VariableDeclaration>();
+        public Dictionary<string, TypeDeclaration> TypeDeclarations { get; set; } = new Dictionary<string, TypeDeclaration>();
+        public Dictionary<string, VariableDeclaration> VariableDeclarations { get; set; } = new Dictionary<string, VariableDeclaration>();
     }
 
     public class BlockScope
     {
-        Dictionary<string, VariableDeclaration> VariableDeclarations { get; set; } = new Dictionary<string, VariableDeclaration>();
+        public Dictionary<string, VariableDeclaration> VariableDeclarations { get; set; } = new Dictionary<string, VariableDeclaration>();
     }
 }

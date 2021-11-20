@@ -52,20 +52,23 @@ namespace AilurusLang.Parsing.AST
         public Token Operator { get; set; } // TODO, should this be a token?
     }
 
-    public class Binary : ExpressionNode
+    public abstract class BinaryLike : ExpressionNode
     {
-        public Binary() : base(ExpressionType.Binary) { }
+        public BinaryLike(ExpressionType type) : base(type) { }
+
         public ExpressionNode Left { get; set; }
         public ExpressionNode Right { get; set; }
         public Token Operator { get; set; }
     }
 
-    public class BinaryShortCircut : ExpressionNode
+    public class Binary : BinaryLike
+    {
+        public Binary() : base(ExpressionType.Binary) { }
+    }
+
+    public class BinaryShortCircut : BinaryLike
     {
         public BinaryShortCircut() : base(ExpressionType.BinaryShortCircut) { }
-        public ExpressionNode Left { get; set; }
-        public ExpressionNode Right { get; set; }
-        public Token Operator { get; set; }
     }
 
     public class IfExpression : ExpressionNode
