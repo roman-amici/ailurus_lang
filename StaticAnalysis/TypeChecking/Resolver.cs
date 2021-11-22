@@ -8,6 +8,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 {
     public class Resolver
     {
+        public static readonly ReservedWords ReservedWords = new ReservedWords();
+
         public static StandardScope StandardScope { get; set; } = new StandardScope();
 
         public List<BlockScope> Scopes { get; set; } = new List<BlockScope>();
@@ -38,6 +40,11 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         }
 
         #region Scope Management
+        public bool IsValidVariableName(string name)
+        {
+            return !ReservedWords.Contains(name);
+        }
+
         public bool CanDeclareName(string name)
         {
             if (Scopes.Count == 0)
@@ -99,7 +106,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             {
                 if (StandardScope.TypeDeclarations.ContainsKey(name))
                 {
-                    return ModuleScope.TypeDeclarations[name].Type;
+                    return StandardScope.TypeDeclarations[name].Type;
                 }
             }
 
@@ -559,10 +566,15 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         #endregion
 
-
         #region Resolve Statements
         void ResolveLet(LetStatement let)
         {
+            if (!IsValidVariableName(let.Name.Lexeme))
+            {
+                Error($"Variable cannot have name '{let.Name.Lexeme}' since it is reserved.", let.Name);
+                return;
+            }
+
             if (!CanDeclareName(let.Name.Lexeme))
             {
                 Error($"Variable with name '{let.Name.Lexeme}' already exists in this scope.", let.SourceStart);
@@ -592,9 +604,15 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 assertedType = initializerType;
             }
 
+            if (assertedType == null)
+            {
+                Error($"Could not infer type for variable '{let.Name.Lexeme}'", let.Name);
+                return;
+            }
+
             if (!CanAssignTo(assertedType, initializerType))
             {
-                Error($"Can't assing type {initializerType} to type {assertedType}", let.SourceStart);
+                Error($"Can't assing type {initializerType.DataTypeName} to type {assertedType.DataTypeName}", let.SourceStart);
                 return;
             }
 

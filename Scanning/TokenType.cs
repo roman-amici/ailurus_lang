@@ -90,21 +90,6 @@ namespace AilurusLang.Scanning
         SizeOf,
         PtrTo,
 
-        // Reserved Types
-        Byte,
-        UByte,
-        Short,
-        UShort,
-        Int,
-        UInt,
-        Long,
-        ULong,
-        Float,
-        Double,
-        Void,
-        Str,
-        Bool,
-
         DebugPrint,
 
         // Semantic Types

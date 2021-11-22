@@ -87,7 +87,15 @@ namespace AilurusLang.Parsing.Parsers
             var statements = new List<StatementNode>();
             while (!IsAtEnd)
             {
-                statements.Add(ParseStatement());
+                try
+                {
+                    statements.Add(ParseStatement());
+                }
+                catch (ParsingError e)
+                {
+                    Console.WriteLine(e);
+                    return null;
+                }
             }
 
             return statements;
@@ -101,7 +109,7 @@ namespace AilurusLang.Parsing.Parsers
             {
                 return DetermineNumberLiteral(Previous);
             }
-            if (Match(TokenType.Str))
+            if (Match(TokenType.StringConstant))
             {
                 return new Literal()
                 {
@@ -482,6 +490,7 @@ namespace AilurusLang.Parsing.Parsers
             TypeName assertedType = null;
             ExpressionNode initializer = null;
             bool isMutable = false;
+            var letToken = Previous;
 
             var name = Consume(TokenType.Identifier, "Expected name after 'let'");
 
@@ -511,6 +520,7 @@ namespace AilurusLang.Parsing.Parsers
             return new LetStatement()
             {
                 Name = name,
+                SourceStart = letToken,
                 Initializer = initializer,
                 AssertedType = assertedType,
                 IsMutable = isMutable

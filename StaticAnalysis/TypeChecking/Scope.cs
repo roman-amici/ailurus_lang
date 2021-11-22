@@ -6,20 +6,22 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 {
     public class StandardScope
     {
-        public Dictionary<string, Declaration> TypeDeclarations { get; set; }
+        public Dictionary<string, TypeDeclaration> TypeDeclarations { get; set; }
 
         public StandardScope()
         {
-            TypeDeclarations = new Dictionary<string, Declaration>();
-            TypeDeclarations.Add("bool", new TypeDeclaration() { TypeName = "bool", Type = BooleanType.Instance });
-            TypeDeclarations.Add("byte", new TypeDeclaration() { TypeName = "byte", Type = ByteType.InstanceSigned });
-            TypeDeclarations.Add("ubyte", new TypeDeclaration() { TypeName = "ubyte", Type = ByteType.InstanceUnsigned });
-            TypeDeclarations.Add("short", new TypeDeclaration() { TypeName = "short", Type = ShortType.InstanceSigned });
-            TypeDeclarations.Add("ushort", new TypeDeclaration() { TypeName = "ushort", Type = ShortType.InstanceUnsigned });
-            TypeDeclarations.Add("int", new TypeDeclaration() { TypeName = "int", Type = IntType.InstanceSigned });
-            TypeDeclarations.Add("uint", new TypeDeclaration() { TypeName = "uint", Type = IntType.InstanceUnsigned });
-            TypeDeclarations.Add("float", new TypeDeclaration() { TypeName = "float", Type = FloatType.Instance });
-            TypeDeclarations.Add("double", new TypeDeclaration() { TypeName = "double", Type = DoubleType.Instance });
+            TypeDeclarations = new Dictionary<string, TypeDeclaration>
+            {
+                { "bool", new TypeDeclaration() { TypeName = "bool", Type = BooleanType.Instance } },
+                { "byte", new TypeDeclaration() { TypeName = "byte", Type = ByteType.InstanceSigned } },
+                { "ubyte", new TypeDeclaration() { TypeName = "ubyte", Type = ByteType.InstanceUnsigned } },
+                { "short", new TypeDeclaration() { TypeName = "short", Type = ShortType.InstanceSigned } },
+                { "ushort", new TypeDeclaration() { TypeName = "ushort", Type = ShortType.InstanceUnsigned } },
+                { "int", new TypeDeclaration() { TypeName = "int", Type = IntType.InstanceSigned } },
+                { "uint", new TypeDeclaration() { TypeName = "uint", Type = IntType.InstanceUnsigned } },
+                { "float", new TypeDeclaration() { TypeName = "float", Type = FloatType.Instance } },
+                { "double", new TypeDeclaration() { TypeName = "double", Type = DoubleType.Instance } }
+            };
         }
     }
 

@@ -52,19 +52,6 @@ namespace AilurusLang.Scanning.BasicScanner
 
             //Temp
             Add("print", TokenType.DebugPrint);
-
-            // Reserved Types
-            Add("byte", TokenType.Byte);
-            Add("ubyte", TokenType.UByte);
-            Add("short", TokenType.Short);
-            Add("ushort", TokenType.UShort);
-            Add("int", TokenType.Int);
-            Add("uint", TokenType.UInt);
-            Add("long", TokenType.Long);
-            Add("ulong", TokenType.ULong);
-            Add("float", TokenType.Float);
-            Add("double", TokenType.Double);
-            Add("bool", TokenType.Bool);
         }
     }
 }

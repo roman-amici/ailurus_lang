@@ -1,4 +1,4 @@
-let x = 3;
+let x;
 x = x + 4;
 
 print x;

@@ -35,7 +35,7 @@ namespace AilurusLang
 
             var tokens = scanner.Scan(source, fileName);
             var statements = parser.Parse(tokens);
-            if (parser.IsValid)
+            if (parser.IsValid && statements != null)
             {
                 resolver.ResolveStatements(statements);
                 if (!resolver.HadError)
