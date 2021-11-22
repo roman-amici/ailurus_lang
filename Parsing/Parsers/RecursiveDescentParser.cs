@@ -220,6 +220,11 @@ namespace AilurusLang.Parsing.Parsers
             var sourceStart = Previous;
             var predicate = Or();
             Consume(TokenType.Then, "Expected 'then' in if expression");
+            return FinishIfExpression(sourceStart, predicate); // Split in two to deal with if statement ambiguity
+        }
+
+        ExpressionNode FinishIfExpression(Token sourceStart, ExpressionNode predicate)
+        {
             var trueExpr = Expression();
             Consume(TokenType.Else, "Expected 'else' in if expression");
             var falseExpr = Expression();
@@ -471,7 +476,7 @@ namespace AilurusLang.Parsing.Parsers
 
         #region Statements
 
-        StatementNode ExpressionStatement()
+        ExpressionStatement ExpressionStatement()
         {
             var sourceStart = Peek;
             var expr = Expression();
@@ -485,7 +490,7 @@ namespace AilurusLang.Parsing.Parsers
             };
         }
 
-        StatementNode LetStatement()
+        LetStatement LetStatement()
         {
             TypeName assertedType = null;
             ExpressionNode initializer = null;
@@ -527,7 +532,7 @@ namespace AilurusLang.Parsing.Parsers
             };
         }
 
-        StatementNode PrintStatement()
+        PrintStatement PrintStatement()
         {
             var expr = Expression();
             Consume(TokenType.Semicolon, "Expected ';' after print statement");
@@ -538,7 +543,7 @@ namespace AilurusLang.Parsing.Parsers
             };
         }
 
-        StatementNode BlockStatement()
+        BlockStatement BlockStatement()
         {
             var brace = Previous;
             var statements = ListOfStatements();
@@ -564,6 +569,42 @@ namespace AilurusLang.Parsing.Parsers
             return statements;
         }
 
+        StatementNode IfStatement()
+        {
+            var ifStart = Previous;
+            var predicate = Expression();
+
+            if (Match(TokenType.LeftBrace))
+            {
+                var thenStatements = BlockStatement();
+                BlockStatement elseStatements = null;
+                if (Match(TokenType.Else))
+                {
+                    Consume(TokenType.LeftBrace, "Expected '{' after 'else'");
+                    elseStatements = BlockStatement();
+                }
+
+                return new IfStatement()
+                {
+                    Predicate = predicate,
+                    ThenStatements = thenStatements,
+                    ElseStatements = elseStatements,
+                    SourceStart = ifStart
+                };
+            }
+            else
+            {
+                Consume(TokenType.Then, "Expected '{' or 'then' after 'if'.");
+                var ifExpression = FinishIfExpression(ifStart, predicate);
+                Consume(TokenType.Semicolon, "Expected ';' after expression.");
+                return new ExpressionStatement()
+                {
+                    Expr = ifExpression,
+                    SourceStart = ifStart
+                };
+            }
+        }
+
         StatementNode ParseStatement()
         {
             if (Match(TokenType.Let))
@@ -577,6 +618,10 @@ namespace AilurusLang.Parsing.Parsers
             else if (Match(TokenType.LeftBrace))
             {
                 return BlockStatement();
+            }
+            else if (Match(TokenType.If))
+            {
+                return IfStatement();
             }
 
             return ExpressionStatement();

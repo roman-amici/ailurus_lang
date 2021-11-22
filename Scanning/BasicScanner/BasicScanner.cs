@@ -283,6 +283,9 @@ namespace AilurusLang.Scanning.BasicScanner
             {
                 if (CurrentChar == '*' && NextChar == '/')
                 {
+                    // Consume the * and the /
+                    Advance();
+                    Advance();
                     return;
                 }
                 Advance();

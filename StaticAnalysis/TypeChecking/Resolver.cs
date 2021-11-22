@@ -647,6 +647,22 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             EndScope();
         }
 
+        void ResolveIfStatement(IfStatement ifStatement)
+        {
+            var predicate = ResolveExpression(ifStatement.Predicate);
+
+            if (!(predicate is BooleanType))
+            {
+                Error($"Expected if predicate to be of type bool but instead found type {predicate.DataTypeName}", ifStatement.SourceStart);
+            }
+
+            ResolveBlock(ifStatement.ThenStatements);
+            if (ifStatement.ElseStatements != null)
+            {
+                ResolveBlock(ifStatement.ElseStatements);
+            }
+        }
+
         void ResolveStatement(StatementNode statement)
         {
             switch (statement.StmtType)
@@ -662,6 +678,9 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     break;
                 case StatementType.Block:
                     ResolveBlock((BlockStatement)statement);
+                    break;
+                case StatementType.If:
+                    ResolveIfStatement((IfStatement)statement);
                     break;
                 default:
                     throw new NotImplementedException();

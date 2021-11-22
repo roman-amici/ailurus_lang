@@ -70,9 +70,25 @@ namespace AilurusLang.Interpreter.TreeWalker
                 case BlockStatement blockStatement:
                     EvalBlockStatement(blockStatement);
                     break;
+                case IfStatement ifStatement:
+                    EvalIfStatement(ifStatement);
+                    break;
                 default:
                     throw new NotImplementedException();
 
+            }
+        }
+
+        void EvalIfStatement(IfStatement ifStatement)
+        {
+            var pred = EvalExpression(ifStatement.Predicate);
+            if (pred.GetAs<bool>())
+            {
+                EvalBlockStatement(ifStatement.ThenStatements);
+            }
+            else if (ifStatement.ElseStatements != null)
+            {
+                EvalBlockStatement(ifStatement.ElseStatements);
             }
         }
 
