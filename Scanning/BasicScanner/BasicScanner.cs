@@ -150,7 +150,7 @@ namespace AilurusLang.Scanning.BasicScanner
                 case ')': return CreateToken(TokenType.RightParen);
                 case '[': return CreateToken(TokenType.LeftBracket);
                 case ']': return CreateToken(TokenType.RightBracket);
-                case '{': return CreateToken(TokenType.RightBrace);
+                case '{': return CreateToken(TokenType.LeftBrace);
                 case '}': return CreateToken(TokenType.RightBrace);
                 case ',': return CreateToken(TokenType.Comma);
                 case '.': return CreateToken(TokenType.Dot);

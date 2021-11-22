@@ -24,7 +24,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             ModuleScope = new ModuleScope();
         }
 
-        public void Error(string message, Token token)
+        void Error(string message, Token token)
         {
             HadError = true;
             var error = new TypeError(message, token);
@@ -40,12 +40,22 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         }
 
         #region Scope Management
-        public bool IsValidVariableName(string name)
+        void BeginScope()
+        {
+            Scopes.Add(new BlockScope());
+        }
+
+        void EndScope()
+        {
+            Scopes.RemoveAt(Scopes.Count - 1);
+        }
+
+        bool IsValidVariableName(string name)
         {
             return !ReservedWords.Contains(name);
         }
 
-        public bool CanDeclareName(string name)
+        bool CanDeclareName(string name)
         {
             if (Scopes.Count == 0)
             {
@@ -630,6 +640,13 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             ResolveExpression(print.Expr);
         }
 
+        void ResolveBlock(BlockStatement block)
+        {
+            BeginScope();
+            ResolveStatements(block.Statements);
+            EndScope();
+        }
+
         void ResolveStatement(StatementNode statement)
         {
             switch (statement.StmtType)
@@ -642,6 +659,9 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     break;
                 case StatementType.Print:
                     ResolvePrint((PrintStatement)statement);
+                    break;
+                case StatementType.Block:
+                    ResolveBlock((BlockStatement)statement);
                     break;
                 default:
                     throw new NotImplementedException();

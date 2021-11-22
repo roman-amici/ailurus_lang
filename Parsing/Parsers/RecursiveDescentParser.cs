@@ -538,6 +538,32 @@ namespace AilurusLang.Parsing.Parsers
             };
         }
 
+        StatementNode BlockStatement()
+        {
+            var brace = Previous;
+            var statements = ListOfStatements();
+
+            return new BlockStatement()
+            {
+                Statements = statements,
+                SourceStart = brace
+            };
+        }
+
+        List<StatementNode> ListOfStatements()
+        {
+            var statements = new List<StatementNode>();
+            while (!Check(TokenType.RightBrace) && !IsAtEnd)
+            {
+                var statement = ParseStatement();
+                statements.Add(statement);
+            }
+
+            Consume(TokenType.RightBrace, "Expected '}' closing block.");
+
+            return statements;
+        }
+
         StatementNode ParseStatement()
         {
             if (Match(TokenType.Let))
@@ -547,6 +573,10 @@ namespace AilurusLang.Parsing.Parsers
             else if (Match(TokenType.DebugPrint))
             {
                 return PrintStatement();
+            }
+            else if (Match(TokenType.LeftBrace))
+            {
+                return BlockStatement();
             }
 
             return ExpressionStatement();

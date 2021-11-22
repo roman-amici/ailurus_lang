@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using AilurusLang.DataType;
 using AilurusLang.Scanning;
 
@@ -53,6 +54,12 @@ namespace AilurusLang.Parsing.AST
     {
         public PrintStatement() : base(StatementType.Print) { }
         public ExpressionNode Expr { get; set; }
+    }
+
+    public class BlockStatement : StatementNode
+    {
+        public BlockStatement() : base(StatementType.Block) { }
+        public List<StatementNode> Statements { get; set; }
     }
 
 }

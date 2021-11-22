@@ -23,6 +23,20 @@ namespace AilurusLang.Interpreter.TreeWalker
             // TODO: Setup module environment from the resolver
         }
 
+        #region Environment Management
+
+        void PushEnvironment()
+        {
+            BlockEnvironments.Add(new TreeWalkerEnvironment());
+        }
+
+        void PopEnvironment()
+        {
+            BlockEnvironments.RemoveAt(BlockEnvironments.Count - 1);
+        }
+
+        #endregion
+
         #region Statements
 
         public void EvalStatements(List<StatementNode> statements)
@@ -53,6 +67,11 @@ namespace AilurusLang.Interpreter.TreeWalker
                 case PrintStatement printStatement:
                     EvalPrintStatement(printStatement);
                     break;
+                case BlockStatement blockStatement:
+                    EvalBlockStatement(blockStatement);
+                    break;
+                default:
+                    throw new NotImplementedException();
 
             }
         }
@@ -82,6 +101,16 @@ namespace AilurusLang.Interpreter.TreeWalker
             }
             env.SetValue(stmt.Declaration, initializer);
 
+        }
+
+        void EvalBlockStatement(BlockStatement block)
+        {
+            PushEnvironment();
+            foreach (var statement in block.Statements)
+            {
+                EvalStatement(statement);
+            }
+            PopEnvironment();
         }
 
         #endregion
