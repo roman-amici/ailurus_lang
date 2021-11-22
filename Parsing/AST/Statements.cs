@@ -14,7 +14,9 @@ namespace AilurusLang.Parsing.AST
         For,
         Break,
         Continue,
-        Return
+        Return,
+        // Temp
+        Print
     }
 
     public abstract class StatementNode : ASTNode
@@ -36,6 +38,7 @@ namespace AilurusLang.Parsing.AST
         public Token Name { get; set; }
         public ExpressionNode Initializer { get; set; }
         public TypeName AssertedType { get; set; }
+        public VariableDeclaration Declaration { get; set; }
     }
 
     public class ExpressionStatement : StatementNode
@@ -44,6 +47,12 @@ namespace AilurusLang.Parsing.AST
 
         public ExpressionNode Expr { get; set; }
 
+    }
+
+    public class PrintStatement : StatementNode
+    {
+        public PrintStatement() : base(StatementType.Print) { }
+        public ExpressionNode Expr { get; set; }
     }
 
 }

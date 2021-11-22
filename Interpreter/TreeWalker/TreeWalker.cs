@@ -13,15 +13,32 @@ namespace AilurusLang.Interpreter.TreeWalker
     {
         public Evaluator Evaluator { get; set; }
 
-        public List<TreeWalkerEnvironment> Environments { get; set; } = new List<TreeWalkerEnvironment>();
+        public TreeWalkerEnvironment ModuleEnvironment { get; set; } = new TreeWalkerEnvironment();
+
+        public List<TreeWalkerEnvironment> BlockEnvironments { get; set; } = new List<TreeWalkerEnvironment>();
 
         public TreeWalker(Evaluator evaluator)
         {
             Evaluator = evaluator;
-            Environments.Add(new TreeWalkerEnvironment());
+            // TODO: Setup module environment from the resolver
         }
 
         #region Statements
+
+        public void EvalStatements(List<StatementNode> statements)
+        {
+            foreach (var statement in statements)
+            {
+                try
+                {
+                    EvalStatement(statement);
+                }
+                catch (RuntimeError _)
+                {
+                    return;
+                }
+            }
+        }
 
         public void EvalStatement(StatementNode stmt)
         {
@@ -33,7 +50,17 @@ namespace AilurusLang.Interpreter.TreeWalker
                 case LetStatement letStatement:
                     EvalLetStatement(letStatement);
                     break;
+                case PrintStatement printStatement:
+                    EvalPrintStatement(printStatement);
+                    break;
+
             }
+        }
+
+        void EvalPrintStatement(PrintStatement print)
+        {
+            var value = EvalExpression(print.Expr);
+            Console.WriteLine($"{value}");
         }
 
         void EvalLetStatement(LetStatement stmt)
@@ -43,6 +70,17 @@ namespace AilurusLang.Interpreter.TreeWalker
             {
                 initializer = EvalExpression(stmt.Initializer);
             }
+
+            TreeWalkerEnvironment env;
+            if (stmt.Declaration.ScopeDepth == null)
+            {
+                env = ModuleEnvironment;
+            }
+            else
+            {
+                env = BlockEnvironments[(int)stmt.Declaration.ScopeDepth];
+            }
+            env.SetValue(stmt.Declaration, initializer);
 
         }
 
@@ -60,6 +98,8 @@ namespace AilurusLang.Interpreter.TreeWalker
                 ExpressionType.Binary => EvalBinary((Binary)expr),
                 ExpressionType.BinaryShortCircut => EvalBinaryShortCircut((BinaryShortCircut)expr),
                 ExpressionType.IfExpression => EvalIfExpression((IfExpression)expr),
+                ExpressionType.Variable => EvalVariableExpression((Variable)expr),
+                ExpressionType.Assign => EvalAssignExpression((Assign)expr),
                 _ => throw new NotImplementedException(),
             };
         }
@@ -153,6 +193,48 @@ namespace AilurusLang.Interpreter.TreeWalker
             {
                 throw new RuntimeError("Predicate in 'If' expression must be of type 'bool'", ifExpr.SourceStart);
             }
+        }
+
+        AilurusValue EvalVariableExpression(Variable varExpr)
+        {
+
+            if (varExpr.Resolution is VariableDeclaration v)
+            {
+                if (!v.IsInitialized)
+                {
+                    // TODO: Reject statically
+                    throw new RuntimeError("Referenced an uninitialized variable", varExpr.Name);
+                }
+                if (v.ScopeDepth is null)
+                {
+                    return ModuleEnvironment.GetValue(v);
+                }
+                else
+                {
+                    return BlockEnvironments[(int)v.ScopeDepth].GetValue(v);
+                }
+            }
+            else
+            {
+                // TODO: Handle functions
+                throw new NotImplementedException();
+            }
+        }
+
+        AilurusValue EvalAssignExpression(Assign assign)
+        {
+            var value = EvalExpression(assign.Assignment);
+            if (assign.Resolution.ScopeDepth == null)
+            {
+                ModuleEnvironment.SetValue(assign.Resolution, value);
+            }
+            else
+            {
+                BlockEnvironments[(int)assign.Resolution.ScopeDepth]
+                    .SetValue(assign.Resolution, value);
+            }
+
+            return value;
         }
 
         #endregion

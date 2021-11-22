@@ -6,7 +6,7 @@ namespace AilurusLang.Interpreter.Runtime
 
     public class TreeWalkerEnvironment
     {
-        Dictionary<Declaration, AilurusValue> Values { get; set; }
+        Dictionary<Declaration, AilurusValue> Values { get; set; } = new Dictionary<Declaration, AilurusValue>();
 
         public AilurusValue GetValue(Declaration declaration)
         {

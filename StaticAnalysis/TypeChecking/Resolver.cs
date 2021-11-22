@@ -38,7 +38,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         }
 
         #region Scope Management
-        public bool CanDeclarName(string name)
+        public bool CanDeclareName(string name)
         {
             if (Scopes.Count == 0)
             {
@@ -122,6 +122,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
             if (Scopes.Count > 0)
             {
+                declaration.ScopeDepth = Scopes.Count - 1;
                 Scopes[^1].VariableDeclarations.Add(declaration.Name, declaration);
             }
             else
@@ -321,9 +322,32 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     return ResolveIfExpression((IfExpression)expr);
                 case ExpressionType.Variable:
                     return ResolveVariable((Variable)expr);
+                case ExpressionType.Assign:
+                    return ResolveAssign((Assign)expr);
                 default:
                     throw new NotImplementedException();
             }
+        }
+
+        AilurusDataType ResolveAssign(Assign expr)
+        {
+            var assignment = ResolveExpression(expr.Assignment);
+            var declaration = FindVariableDeclaration(expr.Name.Lexeme);
+            if (declaration == null)
+            {
+                Error($"No variable was found with name {expr.Name.Lexeme}", expr.Name);
+            }
+            else if (declaration is VariableDeclaration v)
+            {
+                expr.Resolution = v;
+                expr.Resolution.IsInitialized = true;
+            }
+            else
+            {
+                Error($"Cannot assign to {expr.Name.Lexeme}", expr.Name);
+            }
+
+            return assignment;
         }
 
         AilurusDataType ResolveVariable(Variable expr)
@@ -539,7 +563,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         #region Resolve Statements
         void ResolveLet(LetStatement let)
         {
-            if (CanDeclarName(let.Name.Lexeme))
+            if (!CanDeclareName(let.Name.Lexeme))
             {
                 Error($"Variable with name '{let.Name.Lexeme}' already exists in this scope.", let.SourceStart);
                 return;
@@ -574,8 +598,18 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 return;
             }
 
-            AddVariableToCurrentScope(let.Name, assertedType, let.IsMutable, initialized);
+            var declaration = AddVariableToCurrentScope(
+                let.Name,
+                assertedType,
+                let.IsMutable,
+                initialized);
 
+            let.Declaration = declaration;
+        }
+
+        void ResolvePrint(PrintStatement print)
+        {
+            ResolveExpression(print.Expr);
         }
 
         void ResolveStatement(StatementNode statement)
@@ -587,6 +621,9 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     break;
                 case StatementType.Let:
                     ResolveLet((LetStatement)statement);
+                    break;
+                case StatementType.Print:
+                    ResolvePrint((PrintStatement)statement);
                     break;
                 default:
                     throw new NotImplementedException();

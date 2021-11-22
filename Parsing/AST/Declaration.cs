@@ -16,6 +16,7 @@ namespace AilurusLang.Parsing.AST
         public string Name { get; set; }
         public bool IsMutable { get; set; }
         public bool IsInitialized { get; set; }
+        public int? ScopeDepth { get; set; } = null;
     }
 
     public class FunctionDeclaration : Declaration

@@ -40,14 +40,7 @@ namespace AilurusLang
                 resolver.ResolveStatements(statements);
                 if (!resolver.HadError)
                 {
-                    foreach (var stmt in statements)
-                    {
-                        if (stmt is ExpressionStatement e)
-                        {
-                            var value = treeWalker.EvalExpression(e.Expr);
-                            Console.WriteLine($"{value} : {e.Expr.DataType.DataTypeName}");
-                        }
-                    }
+                    treeWalker.EvalStatements(statements);
                 }
             }
         }

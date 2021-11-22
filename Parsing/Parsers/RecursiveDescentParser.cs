@@ -173,6 +173,7 @@ namespace AilurusLang.Parsing.Parsers
                 return IfExpression();
             }
 
+            Console.WriteLine(Peek);
             RaiseError(Previous, "Unrecognized token");
             return null;
         }
@@ -502,8 +503,10 @@ namespace AilurusLang.Parsing.Parsers
 
             if (initializer == null && assertedType == null)
             {
-                throw new ParsingError(name, "Variable delaration must have either an explicit type or an assignment statement.");
+                RaiseError(name, "Variable delaration must have either an explicit type or an assignment statement.");
             }
+
+            Consume(TokenType.Semicolon, "Expected ';' after 'let' statement");
 
             return new LetStatement()
             {
@@ -514,11 +517,26 @@ namespace AilurusLang.Parsing.Parsers
             };
         }
 
+        StatementNode PrintStatement()
+        {
+            var expr = Expression();
+            Consume(TokenType.Semicolon, "Expected ';' after print statement");
+
+            return new PrintStatement()
+            {
+                Expr = expr
+            };
+        }
+
         StatementNode ParseStatement()
         {
             if (Match(TokenType.Let))
             {
                 return LetStatement();
+            }
+            else if (Match(TokenType.DebugPrint))
+            {
+                return PrintStatement();
             }
 
             return ExpressionStatement();

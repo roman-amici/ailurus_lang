@@ -91,6 +91,7 @@ namespace AilurusLang.Parsing.AST
     {
         public Assign() : base(ExpressionType.Assign) { }
         public Token Name { get; set; }
+        public VariableDeclaration Resolution { get; set; }
         public ExpressionNode Assignment { get; set; }
     }
 

@@ -105,8 +105,10 @@ namespace AilurusLang.Scanning
         Str,
         Bool,
 
+        DebugPrint,
+
         // Semantic Types
-        EOF
+        EOF,
     }
 }
 

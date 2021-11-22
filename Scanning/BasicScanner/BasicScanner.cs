@@ -265,7 +265,6 @@ namespace AilurusLang.Scanning.BasicScanner
                     {
                         return ScanNumber();
                     }
-
                     throw new SyntaxError($"Unrecognized Token {c}", SourceFileName, Line, Column);
             }
         }
