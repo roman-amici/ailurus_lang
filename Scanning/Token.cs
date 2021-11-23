@@ -9,6 +9,11 @@ namespace AilurusLang.Scanning
         public string SourceFile { get; set; }
         public string? Identifier { get; set; }
 
+        public static Token StaticIdentifier(string lexeme)
+        {
+            return new Token(TokenType.Identifier, lexeme, 0, 0, string.Empty, lexeme);
+        }
+
         public Token(
             TokenType type,
             string lexeme,

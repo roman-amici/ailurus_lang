@@ -39,7 +39,7 @@ namespace AilurusLang.Parsing.AST
         public Token Name { get; set; }
         public ExpressionNode Initializer { get; set; }
         public TypeName AssertedType { get; set; }
-        public VariableDeclaration Declaration { get; set; }
+        public VariableDefinition Definition { get; set; }
     }
 
     public class ExpressionStatement : StatementNode

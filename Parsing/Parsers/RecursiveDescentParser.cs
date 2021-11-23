@@ -456,6 +456,134 @@ namespace AilurusLang.Parsing.Parsers
 
         #region Declarations
 
+        Declaration Declaration()
+        {
+            var isExported = false;
+            if (Match(TokenType.Export))
+            {
+                isExported = true;
+            }
+
+            Declaration declaration = null;
+            if (Match(TokenType.Fn))
+            {
+                declaration = FunctionDeclaration();
+            }
+            else if (Match(TokenType.Type))
+            {
+                declaration = AliasTypeDeclaration();
+            }
+            else if (Match(TokenType.Struct))
+            {
+                declaration = StructDeclaration();
+            }
+            else if (Match(TokenType.Let))
+            {
+                declaration = ModuleVariableDeclaration();
+            }
+            else
+            {
+                RaiseError(Peek, $"Unexpected token found '{Peek.Lexeme}'.");
+            }
+
+            declaration.IsExported = isExported;
+            return declaration;
+        }
+
+        ModuleVariableDeclaration ModuleVariableDeclaration()
+        {
+            var letStatement = LetStatement();
+            return new ModuleVariableDeclaration()
+            {
+                Let = letStatement
+            };
+        }
+
+        TypeAliasDeclaration AliasTypeDeclaration()
+        {
+            var typeStart = Previous;
+            var alias = Consume(TokenType.Identifier, "Expected identifier after 'type'.");
+
+            Consume(TokenType.Colon, "Expected ':' after type alias.");
+
+            var aliased = TypeName();
+
+            return new TypeAliasDeclaration()
+            {
+                AliasName = alias,
+                AliasedTypeName = aliased,
+                SourceStart = typeStart
+            };
+        }
+
+        StructDeclaration StructDeclaration()
+        {
+            var structStart = Previous;
+            var structName = Consume(TokenType.Identifier, "Expected identifier after 'struct'.");
+
+            Consume(TokenType.LeftBrace, "Expected '{' after 'struct'.");
+
+            var fields = new List<(Token, TypeName)>();
+            if (!Check(TokenType.RightBrace))
+            {
+                do
+                {
+                    var name = Consume(TokenType.Identifier, "Expected identifier in struct definition.");
+                    Consume(TokenType.Colon, "Expected ':' after struct field name.");
+                    var typeName = TypeName();
+                    fields.Add((name, typeName));
+                } while (Match(TokenType.Comma));
+            }
+            Consume(TokenType.RightBrace, "Expected '}' after struct fields.");
+
+            return new StructDeclaration()
+            {
+                StructName = structName,
+                Fields = fields,
+                SourceStart = structStart
+            };
+        }
+
+        FunctionDeclaration FunctionDeclaration()
+        {
+            var fnStart = Previous;
+            var functionName = Consume(TokenType.Identifier, "Expected identifier after 'fn'.");
+
+            Consume(TokenType.LeftParen, "Expected '(' after 'fn'.");
+
+            var functionArguments = new List<(Token, TypeName)>();
+            if (!Check(TokenType.RightParen))
+            {
+                do
+                {
+                    var argumentName = Consume(TokenType.Identifier, "Expected argument name.");
+                    Consume(TokenType.Colon, "Expected ':' after argument name");
+                    var argumentType = TypeName();
+                    functionArguments.Add((argumentName, argumentType));
+                } while (Match(TokenType.Comma));
+            }
+            Consume(TokenType.RightParen, "Expected ')' after function parameters.");
+
+            TypeName returnType = BaseTypeNames.Void;
+            if (Match(TokenType.Arrow))
+            {
+                Consume(TokenType.Arrow, "Expected '->' after function parameters.");
+                returnType = TypeName();
+            }
+
+            Consume(TokenType.LeftBrace, "Expected '{' before function body.");
+            var functionBody = ListOfStatements();
+
+            return new FunctionDeclaration()
+            {
+                FunctionName = functionName,
+                Statements = functionBody,
+                Arguments = functionArguments,
+                ReturnTypeName = returnType,
+                SourceStart = fnStart
+            };
+        }
+
         TypeName TypeName()
         {
             var name = Consume(TokenType.Identifier, "Expected type name after ':'");
@@ -475,6 +603,44 @@ namespace AilurusLang.Parsing.Parsers
         #endregion
 
         #region Statements
+
+        StatementNode ParseStatement()
+        {
+            if (Match(TokenType.Let))
+            {
+                return LetStatement();
+            }
+            else if (Match(TokenType.DebugPrint))
+            {
+                return PrintStatement();
+            }
+            else if (Match(TokenType.LeftBrace))
+            {
+                return BlockStatement();
+            }
+            else if (Match(TokenType.If))
+            {
+                return IfStatement();
+            }
+            else if (Match(TokenType.While))
+            {
+                return WhileStatement();
+            }
+            else if (Match(TokenType.Do))
+            {
+                return DoWhileStatement();
+            }
+            else if (Match(TokenType.For))
+            {
+                return ForStatement();
+            }
+            else if (Match(TokenType.Break, TokenType.Continue, TokenType.Return))
+            {
+                return ControlStatement();
+            }
+
+            return ExpressionStatement();
+        }
 
         ExpressionStatement ExpressionStatement()
         {
@@ -715,44 +881,6 @@ namespace AilurusLang.Parsing.Parsers
             {
                 throw new NotImplementedException();
             }
-        }
-
-        StatementNode ParseStatement()
-        {
-            if (Match(TokenType.Let))
-            {
-                return LetStatement();
-            }
-            else if (Match(TokenType.DebugPrint))
-            {
-                return PrintStatement();
-            }
-            else if (Match(TokenType.LeftBrace))
-            {
-                return BlockStatement();
-            }
-            else if (Match(TokenType.If))
-            {
-                return IfStatement();
-            }
-            else if (Match(TokenType.While))
-            {
-                return WhileStatement();
-            }
-            else if (Match(TokenType.Do))
-            {
-                return DoWhileStatement();
-            }
-            else if (Match(TokenType.For))
-            {
-                return ForStatement();
-            }
-            else if (Match(TokenType.Break, TokenType.Continue, TokenType.Return))
-            {
-                return ControlStatement();
-            }
-
-            return ExpressionStatement();
         }
 
         #endregion

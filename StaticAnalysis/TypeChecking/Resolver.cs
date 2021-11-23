@@ -91,8 +91,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         {
             if (Scopes.Count == 0)
             {
-                if (ModuleScope.VariableDeclarations.ContainsKey(name) ||
-                    ModuleScope.FunctionDeclarations.ContainsKey(name))
+                if (ModuleScope.VariableDefinitions.ContainsKey(name) ||
+                    ModuleScope.FunctionDefinitions.ContainsKey(name))
                 {
                     return false;
                 }
@@ -104,7 +104,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             else
             {
                 var scope = Scopes[^1];
-                if (scope.VariableDeclarations.ContainsKey(name))
+                if (scope.VariableDefinitions.ContainsKey(name))
                 {
                     return false;
                 }
@@ -115,24 +115,24 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
         }
 
-        public Declaration FindVariableDeclaration(string name)
+        public Definition FindVariableDefinition(string name)
         {
             foreach (var scope in Scopes)
             {
-                if (scope.VariableDeclarations.ContainsKey(name))
+                if (scope.VariableDefinitions.ContainsKey(name))
                 {
-                    return scope.VariableDeclarations[name];
+                    return scope.VariableDefinitions[name];
                 }
             }
 
-            if (ModuleScope.VariableDeclarations.ContainsKey(name))
+            if (ModuleScope.VariableDefinitions.ContainsKey(name))
             {
-                return ModuleScope.VariableDeclarations[name];
+                return ModuleScope.VariableDefinitions[name];
             }
 
-            if (ModuleScope.FunctionDeclarations.ContainsKey(name))
+            if (ModuleScope.FunctionDefinitions.ContainsKey(name))
             {
-                return ModuleScope.FunctionDeclarations[name];
+                return ModuleScope.FunctionDefinitions[name];
             }
 
             return null;
@@ -142,29 +142,29 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         {
             if (ModuleScope.TypeDeclarations.ContainsKey(name))
             {
-                return ModuleScope.TypeDeclarations[name].Type;
+                return ModuleScope.TypeDeclarations[name].DataType;
             }
             else
             {
                 if (StandardScope.TypeDeclarations.ContainsKey(name))
                 {
-                    return StandardScope.TypeDeclarations[name].Type;
+                    return StandardScope.TypeDeclarations[name].DataType;
                 }
             }
 
             return null;
         }
 
-        VariableDeclaration AddVariableToCurrentScope(
+        VariableDefinition AddVariableToCurrentScope(
             Token name,
             AilurusDataType type,
             bool isMutable,
             bool initialized)
         {
-            var declaration = new VariableDeclaration()
+            var declaration = new VariableDefinition()
             {
                 Name = name.Lexeme,
-                Type = type,
+                DataType = type,
                 IsMutable = isMutable,
                 IsInitialized = initialized
             };
@@ -172,11 +172,11 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             if (Scopes.Count > 0)
             {
                 declaration.ScopeDepth = Scopes.Count - 1;
-                Scopes[^1].VariableDeclarations.Add(declaration.Name, declaration);
+                Scopes[^1].VariableDefinitions.Add(declaration.Name, declaration);
             }
             else
             {
-                ModuleScope.VariableDeclarations.Add(declaration.Name, declaration);
+                ModuleScope.VariableDefinitions.Add(declaration.Name, declaration);
             }
 
             return declaration;
@@ -381,12 +381,12 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         AilurusDataType ResolveAssign(Assign expr)
         {
             var assignment = ResolveExpression(expr.Assignment);
-            var declaration = FindVariableDeclaration(expr.Name.Lexeme);
+            var declaration = FindVariableDefinition(expr.Name.Lexeme);
             if (declaration == null)
             {
                 Error($"No variable was found with name {expr.Name.Lexeme}", expr.Name);
             }
-            else if (declaration is VariableDeclaration v)
+            else if (declaration is VariableDefinition v)
             {
                 expr.Resolution = v;
                 expr.Resolution.IsInitialized = true;
@@ -401,26 +401,26 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         AilurusDataType ResolveVariable(Variable expr)
         {
-            var declaration = FindVariableDeclaration(expr.Name.Lexeme);
+            var definition = FindVariableDefinition(expr.Name.Lexeme);
 
-            if (declaration == null)
+            if (definition == null)
             {
                 Error($"No variable was found with name {expr.Name.Lexeme}", expr.SourceStart);
                 return ErrorType.Instance;
             }
 
-            expr.Resolution = declaration;
-            if (declaration is VariableDeclaration v)
+            expr.Resolution = definition;
+            if (definition is VariableDefinition v)
             {
                 if (!v.IsInitialized)
                 {
                     Error($"Variable '{expr.Name.Lexeme}' referenced before assignment.", expr.Name);
                 }
-                return v.Type;
+                return v.DataType;
             }
-            else if (declaration is FunctionDeclaration f)
+            else if (definition is FunctionDefinition f)
             {
-                return f.FunctionType;
+                return f.Declaration.DataType;
             }
 
             // Unreachable
@@ -664,7 +664,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 let.IsMutable,
                 initialized);
 
-            let.Declaration = declaration;
+            let.Definition = declaration;
         }
 
         void ResolvePrint(PrintStatement print)

@@ -6,16 +6,16 @@ namespace AilurusLang.Interpreter.Runtime
 
     public class TreeWalkerEnvironment
     {
-        Dictionary<Declaration, AilurusValue> Values { get; set; } = new Dictionary<Declaration, AilurusValue>();
+        Dictionary<Definition, AilurusValue> Values { get; set; } = new Dictionary<Definition, AilurusValue>();
 
-        public AilurusValue GetValue(Declaration declaration)
+        public AilurusValue GetValue(Definition definition)
         {
-            return Values[declaration];
+            return Values[definition];
         }
 
-        public void SetValue(Declaration declaration, AilurusValue value)
+        public void SetValue(Definition definition, AilurusValue value)
         {
-            Values[declaration] = value;
+            Values[definition] = value;
         }
 
     }
