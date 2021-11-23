@@ -213,15 +213,15 @@ namespace AilurusLang.Interpreter.TreeWalker
             }
 
             TreeWalkerEnvironment env;
-            if (stmt.Definition.ScopeDepth == null)
+            if (stmt.Resolution.ScopeDepth == null)
             {
                 env = ModuleEnvironment;
             }
             else
             {
-                env = BlockEnvironments[(int)stmt.Definition.ScopeDepth];
+                env = BlockEnvironments[(int)stmt.Resolution.ScopeDepth];
             }
-            env.SetValue(stmt.Definition, initializer);
+            env.SetValue(stmt.Resolution, initializer);
 
         }
 
@@ -349,7 +349,7 @@ namespace AilurusLang.Interpreter.TreeWalker
         AilurusValue EvalVariableExpression(Variable varExpr)
         {
 
-            if (varExpr.Resolution is VariableDefinition v)
+            if (varExpr.Resolution is VariableResolution v)
             {
                 if (!v.IsInitialized)
                 {

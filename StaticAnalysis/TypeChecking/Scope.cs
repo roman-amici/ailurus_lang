@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using AilurusLang.DataType;
 using AilurusLang.Parsing.AST;
-using AilurusLang.Scanning;
 
 namespace AilurusLang.StaticAnalysis.TypeChecking
 {
@@ -29,12 +28,12 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
     public class ModuleScope
     {
         public Dictionary<string, TypeDeclaration> TypeDeclarations { get; set; } = new Dictionary<string, TypeDeclaration>();
-        public Dictionary<string, VariableDefinition> VariableDefinitions { get; set; } = new Dictionary<string, VariableDefinition>();
-        public Dictionary<string, FunctionDefinition> FunctionDefinitions { get; set; } = new Dictionary<string, FunctionDefinition>();
+        public Dictionary<string, VariableResolution> VariableResolutions { get; set; } = new Dictionary<string, VariableResolution>();
+        public Dictionary<string, FunctionResolution> FunctionResolutions { get; set; } = new Dictionary<string, FunctionResolution>();
     }
 
     public class BlockScope
     {
-        public Dictionary<string, VariableDefinition> VariableDefinitions { get; set; } = new Dictionary<string, VariableDefinition>();
+        public Dictionary<string, VariableResolution> VariableResolutions { get; set; } = new Dictionary<string, VariableResolution>();
     }
 }

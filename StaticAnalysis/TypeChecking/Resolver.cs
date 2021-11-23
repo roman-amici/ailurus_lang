@@ -91,8 +91,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         {
             if (Scopes.Count == 0)
             {
-                if (ModuleScope.VariableDefinitions.ContainsKey(name) ||
-                    ModuleScope.FunctionDefinitions.ContainsKey(name))
+                if (ModuleScope.VariableResolutions.ContainsKey(name) ||
+                    ModuleScope.FunctionResolutions.ContainsKey(name))
                 {
                     return false;
                 }
@@ -104,7 +104,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             else
             {
                 var scope = Scopes[^1];
-                if (scope.VariableDefinitions.ContainsKey(name))
+                if (scope.VariableResolutions.ContainsKey(name))
                 {
                     return false;
                 }
@@ -115,24 +115,24 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
         }
 
-        public Definition FindVariableDefinition(string name)
+        public Resolution FindVariableDefinition(string name)
         {
             foreach (var scope in Scopes)
             {
-                if (scope.VariableDefinitions.ContainsKey(name))
+                if (scope.VariableResolutions.ContainsKey(name))
                 {
-                    return scope.VariableDefinitions[name];
+                    return scope.VariableResolutions[name];
                 }
             }
 
-            if (ModuleScope.VariableDefinitions.ContainsKey(name))
+            if (ModuleScope.VariableResolutions.ContainsKey(name))
             {
-                return ModuleScope.VariableDefinitions[name];
+                return ModuleScope.VariableResolutions[name];
             }
 
-            if (ModuleScope.FunctionDefinitions.ContainsKey(name))
+            if (ModuleScope.FunctionResolutions.ContainsKey(name))
             {
-                return ModuleScope.FunctionDefinitions[name];
+                return ModuleScope.FunctionResolutions[name];
             }
 
             return null;
@@ -155,13 +155,13 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             return null;
         }
 
-        VariableDefinition AddVariableToCurrentScope(
+        VariableResolution AddVariableToCurrentScope(
             Token name,
             AilurusDataType type,
             bool isMutable,
             bool initialized)
         {
-            var declaration = new VariableDefinition()
+            var declaration = new VariableResolution()
             {
                 Name = name.Lexeme,
                 DataType = type,
@@ -172,11 +172,11 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             if (Scopes.Count > 0)
             {
                 declaration.ScopeDepth = Scopes.Count - 1;
-                Scopes[^1].VariableDefinitions.Add(declaration.Name, declaration);
+                Scopes[^1].VariableResolutions.Add(declaration.Name, declaration);
             }
             else
             {
-                ModuleScope.VariableDefinitions.Add(declaration.Name, declaration);
+                ModuleScope.VariableResolutions.Add(declaration.Name, declaration);
             }
 
             return declaration;
@@ -386,7 +386,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             {
                 Error($"No variable was found with name {expr.Name.Lexeme}", expr.Name);
             }
-            else if (declaration is VariableDefinition v)
+            else if (declaration is VariableResolution v)
             {
                 expr.Resolution = v;
                 expr.Resolution.IsInitialized = true;
@@ -401,16 +401,16 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         AilurusDataType ResolveVariable(Variable expr)
         {
-            var definition = FindVariableDefinition(expr.Name.Lexeme);
+            var resolution = FindVariableDefinition(expr.Name.Lexeme);
 
-            if (definition == null)
+            if (resolution == null)
             {
                 Error($"No variable was found with name {expr.Name.Lexeme}", expr.SourceStart);
                 return ErrorType.Instance;
             }
 
-            expr.Resolution = definition;
-            if (definition is VariableDefinition v)
+            expr.Resolution = resolution;
+            if (resolution is VariableResolution v)
             {
                 if (!v.IsInitialized)
                 {
@@ -418,7 +418,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 }
                 return v.DataType;
             }
-            else if (definition is FunctionDefinition f)
+            else if (resolution is FunctionResolution f)
             {
                 return f.Declaration.DataType;
             }
@@ -664,7 +664,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 let.IsMutable,
                 initialized);
 
-            let.Definition = declaration;
+            let.Resolution = declaration;
         }
 
         void ResolvePrint(PrintStatement print)
