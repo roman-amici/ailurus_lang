@@ -73,11 +73,117 @@ namespace AilurusLang.Interpreter.TreeWalker
                 case IfStatement ifStatement:
                     EvalIfStatement(ifStatement);
                     break;
+                case WhileStatement whileStatement:
+                    EvalWhileStatement(whileStatement);
+                    break;
+                case ForStatement forStatement:
+                    EvalForStatement(forStatement);
+                    break;
+                case BreakStatement breakStatement:
+                    EvalBreakStatement(breakStatement);
+                    break;
+                case ContinueStatement continueStatement:
+                    EvalContinueStatement(continueStatement);
+                    break;
                 default:
                     throw new NotImplementedException();
 
             }
         }
+
+        void EvalContinueStatement(ContinueStatement _continueStatement)
+        {
+            throw new ControlFlowException(ControlFlowType.Continue);
+        }
+
+        void EvalBreakStatement(BreakStatement _breakStatement)
+        {
+            throw new ControlFlowException(ControlFlowType.Break);
+        }
+
+        void EvalForStatement(ForStatement forStatement)
+        {
+            EvalStatement(forStatement.Initializer);
+            while (EvalExpression(forStatement.Predicate).GetAs<bool>())
+            {
+                try
+                {
+                    EvalStatement(forStatement.Statements);
+                }
+                catch (ControlFlowException e)
+                {
+                    if (e.ControlFlowType == ControlFlowType.Break)
+                    {
+                        break;
+                    }
+                    else if (e.ControlFlowType == ControlFlowType.Continue)
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        throw e;
+                    }
+                }
+                EvalExpression(forStatement.Update);
+            }
+        }
+
+        void EvalWhileStatement(WhileStatement whileStatement)
+        {
+            if (whileStatement.IsDoWhile)
+            {
+                while (EvalExpression(whileStatement.Predicate).GetAs<bool>())
+                {
+                    try
+                    {
+                        EvalStatement(whileStatement.Statements);
+                    }
+                    catch (ControlFlowException e)
+                    {
+                        if (e.ControlFlowType == ControlFlowType.Break)
+                        {
+                            break;
+                        }
+                        else if (e.ControlFlowType == ControlFlowType.Continue)
+                        {
+                            continue;
+                        }
+                        else
+                        {
+                            throw e;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                do
+                {
+                    try
+                    {
+                        EvalStatement(whileStatement.Statements);
+                    }
+                    catch (ControlFlowException e)
+                    {
+                        if (e.ControlFlowType == ControlFlowType.Break)
+                        {
+                            break;
+                        }
+                        else if (e.ControlFlowType == ControlFlowType.Continue)
+                        {
+                            continue;
+                        }
+                        else
+                        {
+                            throw e;
+                        }
+                    }
+                } while (EvalExpression(whileStatement.Predicate).GetAs<bool>());
+            }
+        }
+
+
 
         void EvalIfStatement(IfStatement ifStatement)
         {

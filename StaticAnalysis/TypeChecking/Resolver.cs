@@ -15,6 +15,11 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         public List<BlockScope> Scopes { get; set; } = new List<BlockScope>();
         public ModuleScope ModuleScope { get; set; } = new ModuleScope();
 
+
+        public bool WasInLoopBody { get; set; }
+        public bool IsInLoopBody { get; set; }
+        public bool IsInFunctionDefinition { get; set; }
+
         public bool HadError { get; set; }
 
         public void Reset()
@@ -22,6 +27,9 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             HadError = false;
             Scopes = new List<BlockScope>();
             ModuleScope = new ModuleScope();
+            IsInLoopBody = false;
+            WasInLoopBody = false;
+            IsInFunctionDefinition = false;
         }
 
         void Error(string message, Token token)
@@ -38,6 +46,30 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 ResolveStatement(statement);
             }
         }
+
+        #region Control Flow Analysis
+        void EnterLoopBody()
+        {
+            WasInLoopBody = IsInLoopBody;
+            IsInLoopBody = true;
+        }
+
+        void ExitLoopBody()
+        {
+            IsInLoopBody = WasInLoopBody;
+        }
+
+        void EnterFunctionDefinition()
+        {
+            IsInFunctionDefinition = true;
+        }
+
+        void ExitFunctionDefinition()
+        {
+            IsInFunctionDefinition = false;
+        }
+
+        #endregion
 
         #region Scope Management
         void BeginScope()
@@ -463,12 +495,12 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                         }
                         else
                         {
-                            binary.DataType = t1;
+                            binary.DataType = BooleanType.Instance;
                         }
                     }
                     else
                     {
-                        binary.DataType = numericType;
+                        binary.DataType = BooleanType.Instance;
                     }
                     break;
                 case TokenType.Amp:
@@ -653,7 +685,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
             if (!(predicate is BooleanType))
             {
-                Error($"Expected if predicate to be of type bool but instead found type {predicate.DataTypeName}", ifStatement.SourceStart);
+                Error($"Expected if predicate to be of type {BooleanType.Instance.DataTypeName} but instead found type {predicate.DataTypeName}", ifStatement.SourceStart);
             }
 
             ResolveBlock(ifStatement.ThenStatements);
@@ -661,6 +693,56 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             {
                 ResolveBlock(ifStatement.ElseStatements);
             }
+        }
+
+        void ResolveWhileStatement(WhileStatement whileStatement)
+        {
+            var predicate = ResolveExpression(whileStatement.Predicate);
+
+            if (!(predicate is BooleanType))
+            {
+                Error("$Expected 'while' predicate to be of type {BooleanType.Instance.DataTypeName} but instead found type {predicate.DataTypeName}", whileStatement.SourceStart);
+            }
+
+            EnterLoopBody();
+            ResolveBlock(whileStatement.Statements);
+            ExitLoopBody();
+        }
+
+        void ResolveForStatement(ForStatement forStatement)
+        {
+            ResolveStatement(forStatement.Initializer);
+            var predicate = ResolveExpression(forStatement.Predicate);
+
+            if (!(predicate is BooleanType))
+            {
+                Error($"Expected 'for' predicate to be of type {BooleanType.Instance.DataTypeName} but instead frond type {predicate.DataTypeName}", forStatement.Predicate.SourceStart);
+            }
+
+            ResolveExpression(forStatement.Update);
+
+            EnterLoopBody();
+            ResolveBlock(forStatement.Statements);
+            ExitLoopBody();
+        }
+
+        void ResolveBreakOrContinueStatement(ControlStatement control)
+        {
+            if (!IsInLoopBody)
+            {
+                Error($"'{control.SourceStart.Lexeme}' found outside of a loop body", control.SourceStart);
+            }
+        }
+
+        void ResolveReturnStatement(ReturnStatement returnStatement)
+        {
+            if (IsInFunctionDefinition)
+            {
+                Error($"'return' found outside of a function body.", returnStatement.SourceStart);
+            }
+
+            //TODO: handle type checking
+            var returnType = ResolveExpression(returnStatement.ReturnValue);
         }
 
         void ResolveStatement(StatementNode statement)
@@ -681,6 +763,19 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     break;
                 case StatementType.If:
                     ResolveIfStatement((IfStatement)statement);
+                    break;
+                case StatementType.While:
+                    ResolveWhileStatement((WhileStatement)statement);
+                    break;
+                case StatementType.For:
+                    ResolveForStatement((ForStatement)statement);
+                    break;
+                case StatementType.Break:
+                case StatementType.Continue:
+                    ResolveBreakOrContinueStatement((ControlStatement)statement);
+                    break;
+                case StatementType.Return:
+                    ResolveReturnStatement((ReturnStatement)statement);
                     break;
                 default:
                     throw new NotImplementedException();

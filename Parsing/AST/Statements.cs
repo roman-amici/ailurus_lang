@@ -65,7 +65,7 @@ namespace AilurusLang.Parsing.AST
     public class ForStatement : StatementNode
     {
         public ForStatement() : base(StatementType.For) { }
-        public ExpressionNode Initializer { get; set; }
+        public StatementNode Initializer { get; set; }
         public ExpressionNode Predicate { get; set; }
         public ExpressionNode Update { get; set; }
         public BlockStatement Statements { get; set; }

@@ -605,6 +605,118 @@ namespace AilurusLang.Parsing.Parsers
             }
         }
 
+        StatementNode WhileStatement()
+        {
+            var whileStart = Previous;
+            var predicate = Expression();
+
+            Consume(TokenType.LeftBrace, "Expected '{' after 'while'.");
+
+            var body = BlockStatement();
+
+            return new WhileStatement()
+            {
+                Predicate = predicate,
+                Statements = body,
+                SourceStart = whileStart
+            };
+        }
+
+        StatementNode DoWhileStatement()
+        {
+            var doStart = Previous;
+            var body = BlockStatement();
+            Consume(TokenType.While, "Expected 'while' after do block.");
+
+            var predicate = Expression();
+            Consume(TokenType.Semicolon, "Expected ';' after 'while'");
+
+            return new WhileStatement()
+            {
+                Predicate = predicate,
+                Statements = body,
+                IsDoWhile = true,
+                SourceStart = doStart
+            };
+        }
+
+        StatementNode ForStatement()
+        {
+            var forStart = Previous;
+
+            var initializer = ForLoopInitializer();
+
+            var predicate = Expression();
+            Consume(TokenType.Semicolon, "Expected ';' after predicate expression in for loop.");
+
+            var update = Expression();
+            Consume(TokenType.LeftBrace, "Expected '{' after update expression in for loop.");
+
+            var body = BlockStatement();
+
+            return new ForStatement()
+            {
+                Initializer = initializer,
+                Predicate = predicate,
+                Update = update,
+                Statements = body,
+                SourceStart = forStart
+            };
+        }
+
+        StatementNode ForLoopInitializer()
+        {
+            if (Match(TokenType.Let))
+            {
+                return LetStatement();
+            }
+            else
+            {
+                return ExpressionStatement();
+            }
+        }
+
+        StatementNode ControlStatement()
+        {
+            var start = Previous;
+            if (start.Type == TokenType.Break)
+            {
+
+                Consume(TokenType.Semicolon, "Expected ';' after 'break'.");
+                return new BreakStatement()
+                {
+                    SourceStart = start
+                };
+            }
+            else if (start.Type == TokenType.Continue)
+            {
+                Consume(TokenType.Semicolon, "Expected ';' after 'continue'.");
+                return new ContinueStatement()
+                {
+                    SourceStart = start
+                };
+            }
+            else if (start.Type == TokenType.Return)
+            {
+                ExpressionNode returnValue = null;
+                if (!Check(TokenType.Semicolon))
+                {
+                    returnValue = Expression();
+                }
+                Consume(TokenType.Semicolon, "Expected ';' after 'return'.");
+
+                return new ReturnStatement()
+                {
+                    ReturnValue = returnValue,
+                    SourceStart = start
+                };
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+
         StatementNode ParseStatement()
         {
             if (Match(TokenType.Let))
@@ -622,6 +734,22 @@ namespace AilurusLang.Parsing.Parsers
             else if (Match(TokenType.If))
             {
                 return IfStatement();
+            }
+            else if (Match(TokenType.While))
+            {
+                return WhileStatement();
+            }
+            else if (Match(TokenType.Do))
+            {
+                return DoWhileStatement();
+            }
+            else if (Match(TokenType.For))
+            {
+                return ForStatement();
+            }
+            else if (Match(TokenType.Break, TokenType.Continue, TokenType.Return))
+            {
+                return ControlStatement();
             }
 
             return ExpressionStatement();
