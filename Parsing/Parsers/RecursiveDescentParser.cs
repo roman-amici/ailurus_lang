@@ -109,6 +109,11 @@ namespace AilurusLang.Parsing.Parsers
                 }
             }
 
+            if (tokens.Count > 0)
+            {
+                module.SourceStart = tokens[0];
+            }
+
             return module;
         }
 
@@ -269,7 +274,50 @@ namespace AilurusLang.Parsing.Parsers
             }
 
             // This will be 'call' instead eventually
-            return Primary();
+            return Call();
+        }
+
+        ExpressionNode ArgumentList(ExpressionNode callee)
+        {
+            var callStart = Previous;
+            var argumentList = new List<ExpressionNode>();
+            if (!Check(TokenType.RightParen))
+            {
+                do
+                {
+                    argumentList.Add(Expression());
+                } while (Match(TokenType.Comma));
+            }
+
+            var callEnd = Consume(TokenType.RightParen, "Expected ')' after function arguments.");
+
+            return new Call()
+            {
+                Callee = callee,
+                ArgumentList = argumentList,
+                SourceStart = callStart,
+                RightParen = callEnd
+            };
+        }
+
+        ExpressionNode Call()
+        {
+            var expr = Primary();
+
+            while (true) // Use to match calls one after another
+            {
+                if (Match(TokenType.LeftParen))
+                {
+                    expr = ArgumentList(expr); //Embed the callee expression in the Call Exprssion
+                }
+                else
+                {
+                    break;
+                }
+                // Todo: match '.'
+            }
+
+            return expr;
         }
 
         ExpressionNode Factor()

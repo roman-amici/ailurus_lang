@@ -37,20 +37,56 @@ namespace AilurusLang.Interpreter.TreeWalker
 
         #endregion
 
+        #region Module
+
+        public void EvalModule(Module module)
+        {
+            FunctionDeclaration mainFunction = null;
+            foreach (var function in module.FunctionDeclarations)
+            {
+                EvalFunctionDeclaration(function);
+                if (function.FunctionName.Lexeme == "main")
+                {
+                    mainFunction = function;
+                }
+            }
+
+            if (mainFunction == null)
+            {
+                throw new RuntimeError("Unable to execute module, no 'main' function was found.", module.SourceStart);
+            }
+            else
+            {
+                // TODO: Figure out a better way to do this.
+                var mainCall = new Call()
+                {
+                    Callee = new Variable()
+                    {
+                        Resolution = mainFunction.Resolution
+                    }
+                };
+                EvalCallExpression(mainCall);
+            }
+        }
+
+        void EvalFunctionDeclaration(FunctionDeclaration function)
+        {
+            var functionPointer = new FunctionPointer()
+            {
+                FunctionDeclaration = function
+            };
+            ModuleEnvironment.SetValue(function.Resolution, functionPointer);
+        }
+
+        #endregion
+
         #region Statements
 
         public void EvalStatements(List<StatementNode> statements)
         {
             foreach (var statement in statements)
             {
-                try
-                {
-                    EvalStatement(statement);
-                }
-                catch (RuntimeError _)
-                {
-                    return;
-                }
+                EvalStatement(statement);
             }
         }
 
@@ -183,8 +219,6 @@ namespace AilurusLang.Interpreter.TreeWalker
             }
         }
 
-
-
         void EvalIfStatement(IfStatement ifStatement)
         {
             var pred = EvalExpression(ifStatement.Predicate);
@@ -251,8 +285,49 @@ namespace AilurusLang.Interpreter.TreeWalker
                 ExpressionType.IfExpression => EvalIfExpression((IfExpression)expr),
                 ExpressionType.Variable => EvalVariableExpression((Variable)expr),
                 ExpressionType.Assign => EvalAssignExpression((Assign)expr),
+                ExpressionType.Call => EvalCallExpression((Call)expr),
                 _ => throw new NotImplementedException(),
             };
+        }
+
+        AilurusValue EvalCallExpression(Call call)
+        {
+            var callee = EvalExpression(call.Callee).GetAs<FunctionPointer>();
+
+            var arguments = new List<AilurusValue>();
+            foreach (var argExpr in call.ArgumentList)
+            {
+                var value = EvalExpression(argExpr);
+                arguments.Add(value);
+            }
+
+            PushEnvironment();
+            for (var i = 0; i < arguments.Count; i++)
+            {
+                var value = arguments[i];
+                var resolution = callee.FunctionDeclaration.ArgumentResolutions[i];
+                BlockEnvironments[^1].SetValue(resolution, value);
+            }
+
+            AilurusValue returnValue = null; // Void. Typechecker will protect us.
+            try
+            {
+                EvalStatements(callee.FunctionDeclaration.Statements);
+            }
+            catch (ControlFlowException control)
+            {
+                if (control.ControlFlowType == ControlFlowType.Return)
+                {
+                    returnValue = control.ReturnValue;
+                }
+                else
+                {
+                    throw control;
+                }
+            }
+            PopEnvironment();
+
+            return returnValue;
         }
 
         AilurusValue EvalGrouping(Grouping grouping)

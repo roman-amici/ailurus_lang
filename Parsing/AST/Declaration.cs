@@ -53,6 +53,8 @@ namespace AilurusLang.Parsing.AST
             set => FunctionType = (FunctionType)DataType;
         }
         public FunctionType FunctionType { get; set; }
+        public FunctionResolution Resolution { get; set; }
+        public List<VariableResolution> ArgumentResolutions { get; set; }
     }
 
 

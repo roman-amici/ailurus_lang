@@ -434,9 +434,48 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     return ResolveVariable((Variable)expr);
                 case ExpressionType.Assign:
                     return ResolveAssign((Assign)expr);
+                case ExpressionType.Call:
+                    return ResolveCall((Call)expr);
                 default:
                     throw new NotImplementedException();
             }
+        }
+
+        AilurusDataType ResolveCall(Call call)
+        {
+            var callee = ResolveExpression(call.Callee);
+            AilurusDataType returnType = ErrorType.Instance;
+
+            List<AilurusDataType> argumentTypes;
+            if (callee is FunctionType function)
+            {
+                argumentTypes = function.ArgumentTypes;
+                if (argumentTypes.Count != call.ArgumentList.Count)
+                {
+                    Error($"Expected ${argumentTypes.Count} arguments for function but found ${call.ArgumentList.Count} arguments.", call.RightParen);
+                }
+                returnType = function.ReturnType;
+            }
+            else
+            {
+                Error($"Unable to call value of type {callee.DataTypeName}", call.Callee.SourceStart);
+                argumentTypes = new List<AilurusDataType>();
+            }
+
+            for (var i = 0; i < call.ArgumentList.Count; i++)
+            {
+                var callArgType = ResolveExpression(call.ArgumentList[i]);
+                if (i < argumentTypes.Count)
+                {
+                    var functionArgType = argumentTypes[i];
+                    if (!CanAssignTo(functionArgType, callArgType))
+                    {
+                        Error($"Argument {i} with type {functionArgType.DataTypeName} does not match given expression of type {callArgType.DataTypeName}", call.ArgumentList[i].SourceStart);
+                    }
+                }
+            }
+
+            return returnType;
         }
 
         AilurusDataType ResolveAssign(Assign expr)
@@ -892,7 +931,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             else
             {
                 // Only add it if the name doesn't conflict
-                AddFunctionToModule(functionName, declaration);
+                var resolution = AddFunctionToModule(functionName, declaration);
+                declaration.Resolution = resolution;
             }
         }
 

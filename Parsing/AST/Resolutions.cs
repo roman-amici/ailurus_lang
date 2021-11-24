@@ -4,7 +4,6 @@ namespace AilurusLang.Parsing.AST
 {
     public abstract class Resolution { }
 
-    // Not technically a declaration
     public class VariableResolution : Resolution
     {
         public string Name { get; set; }

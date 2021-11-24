@@ -34,13 +34,13 @@ namespace AilurusLang
             var source = File.ReadAllText(fileName);
 
             var tokens = scanner.Scan(source, fileName);
-            var statements = parser.Parse(tokens);
-            if (parser.IsValid && statements != null)
+            var module = parser.Parse(tokens);
+            if (parser.IsValid && module != null)
             {
-                resolver.ResolveStatements(statements);
+                resolver.ResolveModule(module);
                 if (!resolver.HadError)
                 {
-                    treeWalker.EvalStatements(statements);
+                    treeWalker.EvalModule(module);
                 }
             }
         }

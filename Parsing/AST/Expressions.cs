@@ -99,8 +99,8 @@ namespace AilurusLang.Parsing.AST
     {
         public Call() : base(ExpressionType.Call) { }
 
+        public Token RightParen { get; set; }
         public ExpressionNode Callee { get; set; }
-        public Token OpenParen { get; set; } // Used for error reporting
         public List<ExpressionNode> ArgumentList { get; set; }
     }
 

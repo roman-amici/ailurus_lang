@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AilurusLang.DataType;
+using AilurusLang.Parsing.AST;
 
 namespace AilurusLang.Interpreter.Runtime
 {
@@ -106,6 +107,36 @@ namespace AilurusLang.Interpreter.Runtime
         public override string ToString()
         {
             return Value.ToString();
+        }
+    }
+
+    public class FunctionPointer : AilurusValue
+    {
+        public FunctionDeclaration FunctionDeclaration { get; set; }
+
+        public override string TypeName => FunctionDeclaration.DataType.DataTypeName;
+
+        public override bool AssertType(AilurusDataType dataType)
+        {
+            // Don't need to implement since static type checking should handle it...
+            if (dataType == FunctionDeclaration.DataType)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public override T GetAs<T>()
+        {
+            if (this is T t)
+            {
+                return t;
+            }
+            // SHould not occur due to type checking
+            throw new RuntimeError($"Unable to convert function pointer to {nameof(T)}", 0, 0, string.Empty);
         }
     }
 
