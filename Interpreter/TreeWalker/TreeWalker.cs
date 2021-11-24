@@ -15,7 +15,7 @@ namespace AilurusLang.Interpreter.TreeWalker
 
         public TreeWalkerEnvironment ModuleEnvironment { get; set; } = new TreeWalkerEnvironment();
 
-        public List<TreeWalkerEnvironment> BlockEnvironments { get; set; } = new List<TreeWalkerEnvironment>();
+        public List<List<TreeWalkerEnvironment>> CallStack { get; set; } = new List<List<TreeWalkerEnvironment>>();
 
         public TreeWalker(Evaluator evaluator)
         {
@@ -25,14 +25,28 @@ namespace AilurusLang.Interpreter.TreeWalker
 
         #region Environment Management
 
-        void PushEnvironment()
+        void PushBlockEnvironment()
         {
-            BlockEnvironments.Add(new TreeWalkerEnvironment());
+            var env = CallStack[^1];
+            env.Add(new TreeWalkerEnvironment());
         }
 
-        void PopEnvironment()
+        void PopBlockEnvironment()
         {
-            BlockEnvironments.RemoveAt(BlockEnvironments.Count - 1);
+            var env = CallStack[^1];
+            env.RemoveAt(env.Count - 1);
+        }
+
+        void EnterFunctionEnvironment()
+        {
+            CallStack.Add(new List<TreeWalkerEnvironment>());
+            PushBlockEnvironment();
+        }
+
+        void ExitFunctionEnvironment()
+        {
+            PopBlockEnvironment();
+            CallStack.RemoveAt(CallStack.Count - 1);
         }
 
         #endregion
@@ -63,7 +77,8 @@ namespace AilurusLang.Interpreter.TreeWalker
                     Callee = new Variable()
                     {
                         Resolution = mainFunction.Resolution
-                    }
+                    },
+                    ArgumentList = new List<ExpressionNode>(),
                 };
                 EvalCallExpression(mainCall);
             }
@@ -121,10 +136,22 @@ namespace AilurusLang.Interpreter.TreeWalker
                 case ContinueStatement continueStatement:
                     EvalContinueStatement(continueStatement);
                     break;
+                case ReturnStatement returnStatement:
+                    EvalReturnStatement(returnStatement);
+                    break;
                 default:
                     throw new NotImplementedException();
 
             }
+        }
+
+        void EvalReturnStatement(ReturnStatement returnStatement)
+        {
+            var returnValue = EvalExpression(returnStatement.ReturnValue);
+            throw new ControlFlowException(ControlFlowType.Return)
+            {
+                ReturnValue = returnValue
+            };
         }
 
         void EvalContinueStatement(ContinueStatement _continueStatement)
@@ -253,7 +280,7 @@ namespace AilurusLang.Interpreter.TreeWalker
             }
             else
             {
-                env = BlockEnvironments[(int)stmt.Resolution.ScopeDepth];
+                env = CallStack[^1][(int)stmt.Resolution.ScopeDepth];
             }
             env.SetValue(stmt.Resolution, initializer);
 
@@ -261,12 +288,12 @@ namespace AilurusLang.Interpreter.TreeWalker
 
         void EvalBlockStatement(BlockStatement block)
         {
-            PushEnvironment();
+            PushBlockEnvironment();
             foreach (var statement in block.Statements)
             {
                 EvalStatement(statement);
             }
-            PopEnvironment();
+            PopBlockEnvironment();
         }
 
         #endregion
@@ -301,12 +328,12 @@ namespace AilurusLang.Interpreter.TreeWalker
                 arguments.Add(value);
             }
 
-            PushEnvironment();
+            EnterFunctionEnvironment();
             for (var i = 0; i < arguments.Count; i++)
             {
                 var value = arguments[i];
                 var resolution = callee.FunctionDeclaration.ArgumentResolutions[i];
-                BlockEnvironments[^1].SetValue(resolution, value);
+                CallStack[^1][^1].SetValue(resolution, value);
             }
 
             AilurusValue returnValue = null; // Void. Typechecker will protect us.
@@ -325,7 +352,7 @@ namespace AilurusLang.Interpreter.TreeWalker
                     throw control;
                 }
             }
-            PopEnvironment();
+            ExitFunctionEnvironment();
 
             return returnValue;
         }
@@ -354,6 +381,8 @@ namespace AilurusLang.Interpreter.TreeWalker
             {
                 TokenType.Plus => Evaluator.EvalPlus(left, right, binary),
                 TokenType.Minus => Evaluator.EvalMinus(left, right, binary),
+                TokenType.Star => Evaluator.EvalTimes(left, right, binary),
+                TokenType.Slash => Evaluator.EvalDivision(left, right, binary),
                 TokenType.Amp => Evaluator.EvalBitwiseAnd(left, right, binary),
                 TokenType.Bar => Evaluator.EvalBitwiseOr(left, right, binary),
                 TokenType.Carrot => Evaluator.EvalBitwiseXOr(left, right, binary),
@@ -362,7 +391,7 @@ namespace AilurusLang.Interpreter.TreeWalker
                 TokenType.GreaterEqual => Evaluator.EvalGreaterEqual(left, right, binary),
                 TokenType.Less => Evaluator.EvalLess(left, right, binary),
                 TokenType.LessEqual => Evaluator.EvalLessEqual(left, right, binary),
-                _ => throw new NotFiniteNumberException(),
+                _ => throw new NotImplementedException(),
             };
         }
 
@@ -437,12 +466,15 @@ namespace AilurusLang.Interpreter.TreeWalker
                 }
                 else
                 {
-                    return BlockEnvironments[(int)v.ScopeDepth].GetValue(v);
+                    return CallStack[^1][(int)v.ScopeDepth].GetValue(v);
                 }
+            }
+            else if (varExpr.Resolution is FunctionResolution f)
+            {
+                return ModuleEnvironment.GetValue(f);
             }
             else
             {
-                // TODO: Handle functions
                 throw new NotImplementedException();
             }
         }
@@ -456,7 +488,7 @@ namespace AilurusLang.Interpreter.TreeWalker
             }
             else
             {
-                BlockEnvironments[(int)assign.Resolution.ScopeDepth]
+                CallStack[^1][(int)assign.Resolution.ScopeDepth]
                     .SetValue(assign.Resolution, value);
             }
 

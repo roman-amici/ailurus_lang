@@ -836,7 +836,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         void ResolveReturnStatement(ReturnStatement returnStatement)
         {
-            if (IsInFunctionDefinition)
+            if (!IsInFunctionDefinition)
             {
                 Error($"'return' found outside of a function body.", returnStatement.SourceStart);
             }
@@ -963,13 +963,15 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         public void ResolveFunctionDeclarationSecondPass(FunctionDeclaration declaration)
         {
             EnterFunctionDefinition(declaration.FunctionType.ReturnType);
+            declaration.ArgumentResolutions = new List<VariableResolution>();
             for (var i = 0; i < declaration.Arguments.Count; i++)
             {
                 var (argumentName, _) = declaration.Arguments[i];
                 var dataType = declaration.FunctionType.ArgumentTypes[i];
 
                 // TODO: handle mutability
-                AddVariableToCurrentScope(argumentName, dataType, true, true);
+                var resolution = AddVariableToCurrentScope(argumentName, dataType, true, true);
+                declaration.ArgumentResolutions.Add(resolution);
             }
 
             foreach (var statement in declaration.Statements)

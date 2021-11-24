@@ -104,7 +104,7 @@ namespace AilurusLang.Parsing.AST
 
     public class ReturnStatement : ControlStatement
     {
-        public ReturnStatement() : base(StatementType.Continue) { }
+        public ReturnStatement() : base(StatementType.Return) { }
         public ExpressionNode ReturnValue { get; set; }
     }
 

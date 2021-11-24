@@ -1,0 +1,22 @@
+fn main(){
+    print isEven(5);
+    print isEven(6);
+}
+
+fn isEven(i : int) -> bool {
+    if i == 0 {
+        return true;
+    }
+    else {
+        return isOdd(i-1);
+    }
+}
+
+fn isOdd(i : int) -> bool {
+    if i == 0 {
+        return false;
+    }
+    else {
+        return isEven(i-1);
+    }
+}

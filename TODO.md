@@ -8,15 +8,26 @@
  4. Add Struct Declarations
  5. Add Type alias Declarations
  6. Add Module resolution
- 7. Add Integration tests for what I have so that VM can be regression tested.
+ 7. Pointer semantics (without raw pointers or addition).
+ 8. Mutability semantics.
+ 9. Add Integration tests for what I have so that VM can be regression tested.
 
 ## VM
  1. Setup memory regions and stack machine
  2. Implement existing features in VM and pass regression tests
- 3. Add pointer semantics
- 4. Write minimal standard library
+ 3. Add arithmetic and casting
+ 4. Add Array syntax and semantics 
+ 5. Write minimal standard library
 
 ## Compile to source
  1. Compile to asm first?
  2. Compile to llvm?
 
+## New Features
+ 1. Basic generics
+ 2. Variants
+
+## Infrastructure
+ 1. VSCode Syntax highlighting
+ 2. VSCode language server
+ 3. Build system and package manager

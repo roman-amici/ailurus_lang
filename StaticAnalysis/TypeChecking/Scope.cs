@@ -20,7 +20,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 { "int", new BaseTypeDeclaration() { TypeName = BaseTypeNames.Int, DataType = IntType.InstanceSigned } },
                 { "uint", new BaseTypeDeclaration() { TypeName = BaseTypeNames.Uint, DataType = IntType.InstanceUnsigned } },
                 { "float", new BaseTypeDeclaration() { TypeName = BaseTypeNames.Float, DataType = FloatType.Instance } },
-                { "double", new BaseTypeDeclaration() { TypeName = BaseTypeNames.Double, DataType = DoubleType.Instance } }
+                { "double", new BaseTypeDeclaration() { TypeName = BaseTypeNames.Double, DataType = DoubleType.Instance } },
+                { "void", new BaseTypeDeclaration() {TypeName = BaseTypeNames.Void, DataType = VoidType.Instance}},
             };
         }
     }

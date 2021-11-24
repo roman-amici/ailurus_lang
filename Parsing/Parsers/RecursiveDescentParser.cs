@@ -167,6 +167,7 @@ namespace AilurusLang.Parsing.Parsers
             {
                 var sourceStart = Previous;
                 var inner = Expression();
+                Consume(TokenType.RightParen, "Unbalanced parenthesis.");
                 return new Grouping()
                 {
                     Inner = inner,
@@ -627,7 +628,6 @@ namespace AilurusLang.Parsing.Parsers
             TypeName returnType = BaseTypeNames.Void;
             if (Match(TokenType.Arrow))
             {
-                Consume(TokenType.Arrow, "Expected '->' after function parameters.");
                 returnType = TypeName();
             }
 

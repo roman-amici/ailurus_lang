@@ -1,0 +1,9 @@
+fn main()
+{
+    let x = getX();
+    print x;
+}
+
+fn getX() -> int {
+    return 3;
+}

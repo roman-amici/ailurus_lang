@@ -9,6 +9,8 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
 
         public abstract AilurusValue EvalPlus(AilurusValue left, AilurusValue right, Binary b);
         public abstract AilurusValue EvalMinus(AilurusValue left, AilurusValue right, Binary b);
+        public abstract AilurusValue EvalTimes(AilurusValue left, AilurusValue right, Binary b);
+        public abstract AilurusValue EvalDivision(AilurusValue left, AilurusValue right, Binary b);
         public abstract AilurusValue EvalBitwiseAnd(AilurusValue left, AilurusValue right, Binary b);
         public abstract AilurusValue EvalBitwiseOr(AilurusValue left, AilurusValue right, Binary b);
         public abstract AilurusValue EvalBitwiseXOr(AilurusValue left, AilurusValue right, Binary b);

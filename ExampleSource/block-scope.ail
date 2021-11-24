@@ -1,0 +1,9 @@
+let x = "outer";
+{
+    {
+        let x = 4;
+        print x;
+    }
+    x = "middle";
+}
+print x;
