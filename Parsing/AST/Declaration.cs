@@ -53,8 +53,6 @@ namespace AilurusLang.Parsing.AST
             set => FunctionType = (FunctionType)DataType;
         }
         public FunctionType FunctionType { get; set; }
-
-        public Dictionary<string, TypeDeclaration> ResolvedArgumentTypes { get; set; }
     }
 
 

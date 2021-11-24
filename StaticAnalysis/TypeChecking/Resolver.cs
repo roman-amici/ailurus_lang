@@ -15,10 +15,13 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         public List<BlockScope> Scopes { get; set; } = new List<BlockScope>();
         public ModuleScope ModuleScope { get; set; } = new ModuleScope();
 
-
+        //TODO: Proper branch analysis and dead-code detection
         public bool WasInLoopBody { get; set; }
         public bool IsInLoopBody { get; set; }
+
+
         public bool IsInFunctionDefinition { get; set; }
+        public AilurusDataType CurrentFunctionReturnType { get; set; }
 
         public bool HadError { get; set; }
 
@@ -39,6 +42,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             Console.WriteLine(error);
         }
 
+        #region EntryPoints
+
         public void ResolveStatements(List<StatementNode> statements)
         {
             foreach (var statement in statements)
@@ -46,6 +51,33 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 ResolveStatement(statement);
             }
         }
+
+        public void ResolveModule(Module module)
+        {
+            //TODO: Resolve imports
+
+            foreach (var typeDeclaration in module.TypeDeclarations)
+            {
+                // In the first pass we gather type names 
+                ResolveTypeDeclarationFirstPass(typeDeclaration);
+            }
+            foreach (var typeDeclaration in module.TypeDeclarations)
+            {
+                ResolveTypeDeclarationSecondPass(typeDeclaration);
+            }
+
+            foreach (var functionDeclaration in module.FunctionDeclarations)
+            {
+                ResolveFunctionDeclarationFirstPass(functionDeclaration);
+            }
+            foreach (var functionDeclaration in module.FunctionDeclarations)
+            {
+                ResolveFunctionDeclarationSecondPass(functionDeclaration);
+            }
+
+        }
+
+        #endregion
 
         #region Control Flow Analysis
         void EnterLoopBody()
@@ -59,14 +91,18 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             IsInLoopBody = WasInLoopBody;
         }
 
-        void EnterFunctionDefinition()
+        void EnterFunctionDefinition(AilurusDataType returnType)
         {
+            BeginScope();
             IsInFunctionDefinition = true;
+            CurrentFunctionReturnType = returnType;
         }
 
         void ExitFunctionDefinition()
         {
+            EndScope();
             IsInFunctionDefinition = false;
+            CurrentFunctionReturnType = null;
         }
 
         #endregion
@@ -161,7 +197,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             bool isMutable,
             bool initialized)
         {
-            var declaration = new VariableResolution()
+            var resolution = new VariableResolution()
             {
                 Name = name.Lexeme,
                 DataType = type,
@@ -171,15 +207,26 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
             if (Scopes.Count > 0)
             {
-                declaration.ScopeDepth = Scopes.Count - 1;
-                Scopes[^1].VariableResolutions.Add(declaration.Name, declaration);
+                resolution.ScopeDepth = Scopes.Count - 1;
+                Scopes[^1].VariableResolutions.Add(resolution.Name, resolution);
             }
             else
             {
-                ModuleScope.VariableResolutions.Add(declaration.Name, declaration);
+                ModuleScope.VariableResolutions.Add(resolution.Name, resolution);
             }
 
-            return declaration;
+            return resolution;
+        }
+
+        FunctionResolution AddFunctionToModule(string functionName, FunctionDeclaration declaration)
+        {
+            var resolution = new FunctionResolution()
+            {
+                Declaration = declaration,
+            };
+            ModuleScope.FunctionResolutions.Add(functionName, resolution);
+
+            return resolution;
         }
 
         #endregion
@@ -348,6 +395,20 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
             // Unreachable
             return ErrorType.Instance;
+        }
+
+        bool IsValidFunctionArgumentType(AilurusDataType type)
+        {
+
+            //TODO: Others?
+            if (type is VoidType)
+            {
+                return false;
+            }
+            else
+            {
+                return true;
+            }
         }
 
         #endregion
@@ -743,6 +804,10 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
             //TODO: handle type checking
             var returnType = ResolveExpression(returnStatement.ReturnValue);
+            if (!TypesAreEqual(returnType, CurrentFunctionReturnType))
+            {
+                Error($"Return statement has return type of {returnType.DataTypeName} which is incompatible with function return type of {CurrentFunctionReturnType.DataTypeName}", returnStatement.SourceStart);
+            }
         }
 
         void ResolveStatement(StatementNode statement)
@@ -779,6 +844,107 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     break;
                 default:
                     throw new NotImplementedException();
+            }
+        }
+
+        #endregion
+
+        #region Resolve Declarations
+
+        public void ResolveTypeDeclarationFirstPass(TypeDeclaration declaration)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ResolveTypeDeclarationSecondPass(TypeDeclaration declaration)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ResolveFunctionDeclarationFirstPass(FunctionDeclaration declaration)
+        {
+            // Resolve the function type signature and name
+            var functionName = declaration.FunctionName.Lexeme;
+
+            var argumentTypes = new List<AilurusDataType>();
+            foreach (var (_, typeName) in declaration.Arguments)
+            {
+                var type = ResolveTypeName(typeName);
+                if (!IsValidFunctionArgumentType(type))
+                {
+                    Error($"Type {type.DataTypeName} is not a valid type for function arguments.", typeName.Name);
+                }
+                argumentTypes.Add(type);
+            }
+
+            var returnType = ResolveTypeName(declaration.ReturnTypeName);
+
+            declaration.FunctionType = new FunctionType()
+            {
+                ArgumentTypes = argumentTypes,
+                ReturnType = returnType
+            };
+
+            if (!CanDeclareName(functionName))
+            {
+                Error($"Identifier with name '{functionName}' already exists in this module.", declaration.SourceStart);
+            }
+            else
+            {
+                // Only add it if the name doesn't conflict
+                AddFunctionToModule(functionName, declaration);
+            }
+        }
+
+        //Todo: Sparate pass for control flow analysis
+        public bool ValidateReturn(List<StatementNode> statements)
+        {
+            if (statements.Count == 0)
+            {
+                return false;
+            }
+
+            var lastStatement = statements[^1];
+            if (lastStatement is ReturnStatement)
+            {
+                return true;
+            }
+
+            var allBranchesReturn = false;
+            if (lastStatement is IfStatement i && i.ElseStatements != null)
+            {
+                var thenReturns = ValidateReturn(i.ThenStatements.Statements);
+                var elseReturns = ValidateReturn(i.ElseStatements.Statements);
+                allBranchesReturn = thenReturns && elseReturns;
+            }
+            return allBranchesReturn;
+        }
+
+        public void ResolveFunctionDeclarationSecondPass(FunctionDeclaration declaration)
+        {
+            EnterFunctionDefinition(declaration.FunctionType.ReturnType);
+            for (var i = 0; i < declaration.Arguments.Count; i++)
+            {
+                var (argumentName, _) = declaration.Arguments[i];
+                var dataType = declaration.FunctionType.ArgumentTypes[i];
+
+                // TODO: handle mutability
+                AddVariableToCurrentScope(argumentName, dataType, true, true);
+            }
+
+            foreach (var statement in declaration.Statements)
+            {
+                ResolveStatement(statement);
+            }
+            ExitFunctionDefinition();
+
+            if (!(declaration.FunctionType.ReturnType is VoidType))
+            {
+                if (!ValidateReturn(declaration.Statements))
+                {
+                    var token = declaration.Statements.Count == 0 ? declaration.SourceStart : declaration.Statements[^1].SourceStart;
+                    Error("Not all branches return a value.", token);
+                }
             }
         }
 

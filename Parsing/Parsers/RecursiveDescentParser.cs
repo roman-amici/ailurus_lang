@@ -35,11 +35,6 @@ namespace AilurusLang.Parsing.Parsers
             throw new ParsingError(token, errorMessage);
         }
 
-        void ReportWarning(Token token, string warning)
-        {
-            Console.WriteLine($"{token.SourceFile}:{token.Line}:{token.Column} - {warning}");
-        }
-
         // Token Stream querying
         bool Check(TokenType type)
         {
@@ -79,17 +74,33 @@ namespace AilurusLang.Parsing.Parsers
             return Advance();
         }
 
-        public List<StatementNode> Parse(List<Token> tokens)
+        public Module Parse(List<Token> tokens)
         {
             Reset();
             Tokens = tokens;
 
-            var statements = new List<StatementNode>();
+            var module = new Module();
             while (!IsAtEnd)
             {
                 try
                 {
-                    statements.Add(ParseStatement());
+                    var declaration = Declaration();
+                    if (declaration is TypeDeclaration t)
+                    {
+                        module.TypeDeclarations.Add(t);
+                    }
+                    else if (declaration is FunctionDeclaration f)
+                    {
+                        module.FunctionDeclarations.Add(f);
+                    }
+                    else if (declaration is ModuleVariableDeclaration v)
+                    {
+                        module.VariableDeclarations.Add(v);
+                    }
+                    else
+                    {
+                        throw new NotImplementedException();
+                    }
                 }
                 catch (ParsingError e)
                 {
@@ -98,7 +109,7 @@ namespace AilurusLang.Parsing.Parsers
                 }
             }
 
-            return statements;
+            return module;
         }
 
         // Base rule for things like identifiers and constants
@@ -455,6 +466,7 @@ namespace AilurusLang.Parsing.Parsers
         }
 
         #region Declarations
+
 
         Declaration Declaration()
         {
