@@ -22,6 +22,11 @@ namespace AilurusLang.Interpreter.Runtime
             }
         }
         public abstract string TypeName { get; }
+
+        public virtual AilurusValue ByValue()
+        {
+            return this;
+        }
     }
 
     public class DynamicValue : AilurusValue
@@ -154,6 +159,15 @@ namespace AilurusLang.Interpreter.Runtime
             {
                 return false;
             }
+        }
+
+        public override AilurusValue ByValue()
+        {
+            return new StructInstance()
+            {
+                StructType = StructType,
+                Members = new Dictionary<string, AilurusValue>(Members)
+            };
         }
 
         public StructType StructType { get; set; }

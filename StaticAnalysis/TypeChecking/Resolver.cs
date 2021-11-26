@@ -498,6 +498,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     return ResolveCall((Call)expr);
                 case ExpressionType.Get:
                     return ResolveGet((Get)expr);
+                case ExpressionType.Set:
+                    return ResolveSet((SetExpression)expr);
                 case ExpressionType.StructInitialization:
                     return ResolveStructInitialization((StructInitialization)expr);
                 default:
@@ -551,14 +553,16 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             return type;
         }
 
-        AilurusDataType ResolveGet(Get expr)
+        AilurusDataType ResolveFieldReference(IFieldAccessor expr, out StructType innerStruct)
         {
+            innerStruct = null;
             var callSiteType = ResolveExpression(expr.CallSite);
 
             var (_, baseType) = GetBaseType(callSiteType);
 
             if (baseType is StructType structType)
             {
+                innerStruct = structType;
                 var fieldName = expr.FieldName.Identifier;
                 if (structType.Definitions.ContainsKey(fieldName))
                 {
@@ -573,8 +577,27 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             {
                 Error($"Properties must be of type struct, but found {baseType.DataTypeName}", expr.SourceStart);
             }
-
             return ErrorType.Instance;
+        }
+
+        AilurusDataType ResolveSet(SetExpression expr)
+        {
+            var valueType = ResolveExpression(expr.Value);
+            var fieldType = ResolveFieldReference(expr, out StructType structType);
+            if (structType != null)
+            {
+                if (!TypesAreEqual(valueType, fieldType))
+                {
+                    Error($"Unable to assign expression of type '{valueType.DataTypeName}' to field of type '{fieldType.DataTypeName}'.", expr.SourceStart);
+                }
+            }
+
+            return fieldType;
+        }
+
+        AilurusDataType ResolveGet(Get expr)
+        {
+            return ResolveFieldReference(expr, out StructType _);
         }
 
         AilurusDataType ResolveCall(Call call)

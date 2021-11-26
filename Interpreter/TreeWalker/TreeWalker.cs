@@ -155,7 +155,7 @@ namespace AilurusLang.Interpreter.TreeWalker
             var returnValue = EvalExpression(returnStatement.ReturnValue);
             throw new ControlFlowException(ControlFlowType.Return)
             {
-                ReturnValue = returnValue
+                ReturnValue = returnValue.ByValue()
             };
         }
 
@@ -319,6 +319,7 @@ namespace AilurusLang.Interpreter.TreeWalker
                 ExpressionType.Assign => EvalAssignExpression((Assign)expr),
                 ExpressionType.Call => EvalCallExpression((Call)expr),
                 ExpressionType.Get => EvalGetExpression((Get)expr),
+                ExpressionType.Set => EvalSetExpression((SetExpression)expr),
                 ExpressionType.StructInitialization => EvalStructInitialization((StructInitialization)expr),
                 _ => throw new NotImplementedException(),
             };
@@ -361,7 +362,7 @@ namespace AilurusLang.Interpreter.TreeWalker
             EnterFunctionEnvironment();
             for (var i = 0; i < arguments.Count; i++)
             {
-                var value = arguments[i];
+                var value = arguments[i].ByValue();
                 var resolution = callee.FunctionDeclaration.ArgumentResolutions[i];
                 CallStack[^1][^1].SetValue(resolution, value);
             }
@@ -521,6 +522,16 @@ namespace AilurusLang.Interpreter.TreeWalker
                 CallStack[^1][(int)assign.Resolution.ScopeDepth]
                     .SetValue(assign.Resolution, value);
             }
+
+            return value;
+        }
+
+        AilurusValue EvalSetExpression(SetExpression expr)
+        {
+            var callSite = EvalExpression(expr.CallSite).GetAs<StructInstance>();
+            var value = EvalExpression(expr.Value);
+
+            callSite.Members[expr.FieldName.Identifier] = value;
 
             return value;
         }

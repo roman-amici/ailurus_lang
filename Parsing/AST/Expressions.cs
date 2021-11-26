@@ -106,14 +106,21 @@ namespace AilurusLang.Parsing.AST
         public List<ExpressionNode> ArgumentList { get; set; }
     }
 
-    public class Get : ExpressionNode
+    public interface IFieldAccessor
+    {
+        Token FieldName { get; set; }
+        ExpressionNode CallSite { get; set; }
+        Token SourceStart { get; set; }
+    }
+
+    public class Get : ExpressionNode, IFieldAccessor
     {
         public Get() : base(ExpressionType.Get) { }
         public ExpressionNode CallSite { get; set; }
         public Token FieldName { get; set; }
     }
 
-    public class SetExpression : ExpressionNode
+    public class SetExpression : ExpressionNode, IFieldAccessor
     {
         public SetExpression() : base(ExpressionType.Set) { }
         public Token FieldName { get; set; }
