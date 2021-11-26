@@ -55,6 +55,11 @@ namespace AilurusLang.Interpreter.TreeWalker
 
         public void EvalModule(Module module)
         {
+            foreach (var variable in module.VariableDeclarations)
+            {
+                EvalLetStatement(variable.Let);
+            }
+
             FunctionDeclaration mainFunction = null;
             foreach (var function in module.FunctionDeclarations)
             {

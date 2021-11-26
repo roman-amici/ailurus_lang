@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using AilurusLang.DataType;
 using AilurusLang.Parsing.AST;
 using AilurusLang.Scanning;
@@ -18,7 +19,6 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         //TODO: Proper branch analysis and dead-code detection
         public bool WasInLoopBody { get; set; }
         public bool IsInLoopBody { get; set; }
-
 
         public bool IsInFunctionDefinition { get; set; }
         public AilurusDataType CurrentFunctionReturnType { get; set; }
@@ -64,6 +64,11 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             foreach (var typeDeclaration in module.TypeDeclarations)
             {
                 ResolveTypeDeclarationSecondPass(typeDeclaration);
+            }
+
+            foreach (var variableDeclaration in module.VariableDeclarations)
+            {
+                ResolveModuleVariableDeclarations(variableDeclaration);
             }
 
             foreach (var functionDeclaration in module.FunctionDeclarations)
@@ -178,7 +183,17 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         {
             if (ModuleScope.TypeDeclarations.ContainsKey(name))
             {
-                return ModuleScope.TypeDeclarations[name].DataType;
+                var declaration = ModuleScope.TypeDeclarations[name];
+                if (declaration.State == TypeDeclaration.ResolutionState.Resolving)
+                {
+                    Error($"Circular type declaration detected while resolving type {name}", declaration.SourceStart);
+                    return ErrorType.Instance;
+                }
+                else if (declaration.State != TypeDeclaration.ResolutionState.Resolved)
+                {
+                    ResolveTypeDeclarationSecondPass(declaration);
+                }
+                return declaration.DataType;
             }
             else
             {
@@ -233,12 +248,27 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         #region Type Resolution Helpers
 
+        AilurusDataType ResolvePlaceholder(PlaceholderType placeholder)
+        {
+            if (placeholder.ResolvedType == null)
+            {
+                placeholder.ResolvedType = ResolveTypeName(placeholder.TypeName);
+            }
+
+            return placeholder.ResolvedType;
+        }
+
         AilurusDataType ResolveTypeName(TypeName typeName)
         {
             var type = LookupTypeByName(typeName.Name.Lexeme);
             if (type == null)
             {
                 return ErrorType.Instance;
+            }
+
+            if (type is PlaceholderType placeholder)
+            {
+                type = placeholder.ResolvedType;
             }
 
             if (typeName.IsPtr)
@@ -342,7 +372,6 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             {
                 return TypesAreEqual(assertedType, initializerType);
             }
-
         }
 
         AilurusDataType GetNumericOperatorCoercion(AilurusDataType t1, AilurusDataType t2)
@@ -411,6 +440,28 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
         }
 
+        bool IsStaticExpression(ExpressionNode expr)
+        {
+            // TODO: Constant evaluation and constexpr graphs?
+            return expr switch
+            {
+                BinaryLike b => IsStaticExpression(b.Left) && IsStaticExpression(b.Right),
+                Literal _ => true,
+                Unary u => IsStaticExpression(u.Expr),
+                Grouping g => IsStaticExpression(g.Inner),
+                IfExpression i => IsStaticExpression(i.Predicate)
+                                    && IsStaticExpression(i.TrueExpr)
+                                    && IsStaticExpression(i.FalseExpr),
+                // All others are non-static
+                _ => false,
+            };
+        }
+
+        bool CanDeclareType(string type)
+        {
+            return !ModuleScope.TypeDeclarations.ContainsKey(type);
+        }
+
         #endregion
 
         #region Resolve Expression
@@ -436,9 +487,37 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     return ResolveAssign((Assign)expr);
                 case ExpressionType.Call:
                     return ResolveCall((Call)expr);
+                case ExpressionType.Get:
+                    return ResolveGet((Get)expr);
                 default:
                     throw new NotImplementedException();
             }
+        }
+
+        AilurusDataType ResolveGet(Get expr)
+        {
+            var callSiteType = ResolveExpression(expr);
+
+            var (_, baseType) = GetBaseType(callSiteType);
+
+            if (baseType is StructType structType)
+            {
+                var fieldName = expr.FieldName.Identifier;
+                if (structType.Definitions.ContainsKey(fieldName))
+                {
+                    return structType.Definitions[fieldName];
+                }
+                else
+                {
+                    Error($"Field '{fieldName}' not found on struct of type '{structType.DataTypeName}'", expr.SourceStart);
+                }
+            }
+            else
+            {
+                Error($"Properties must be of type struct, but found {baseType.DataTypeName}", expr.SourceStart);
+            }
+
+            return ErrorType.Instance;
         }
 
         AilurusDataType ResolveCall(Call call)
@@ -709,7 +788,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         #endregion
 
         #region Resolve Statements
-        void ResolveLet(LetStatement let)
+        void ResolveLet(LetStatement let, bool moduleVariable = false)
         {
             if (!IsValidVariableName(let.Name.Lexeme))
             {
@@ -735,6 +814,22 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
 
             var initialized = let.Initializer != null;
+
+            if (moduleVariable)
+            {
+                if (initialized)
+                {
+                    if (!IsStaticExpression(let.Initializer))
+                    {
+                        Error($"Module variables must have a static initialization.", let.Initializer.SourceStart);
+                    }
+                }
+                else
+                {
+                    Error($"Module variables must be initialized.", let.SourceStart);
+                }
+            }
+
             if (initialized)
             {
                 initializerType = ResolveExpression(let.Initializer);
@@ -890,17 +985,153 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         #region Resolve Declarations
 
-        public void ResolveTypeDeclarationFirstPass(TypeDeclaration declaration)
+        bool ResolveAliasDeclarationFirstPass(TypeAliasDeclaration alias)
         {
-            throw new NotImplementedException();
+            var typeName = alias.AliasName.Identifier;
+            if (!CanDeclareType(typeName))
+            {
+                Error($"Type name {typeName} is already declared in this module.", alias.AliasName);
+                return false;
+            }
+
+            var placeholder = new PlaceholderType()
+            {
+                TypeName = alias.AliasedTypeName
+            };
+            alias.DataType = new AliasType()
+            {
+                Alias = typeName,
+                BaseType = placeholder,
+            };
+
+            ModuleScope.TypeDeclarations.Add(typeName, alias);
+
+            return true;
         }
 
-        public void ResolveTypeDeclarationSecondPass(TypeDeclaration declaration)
+        bool ResolveStructDeclarationFirstPass(StructDeclaration s)
         {
-            throw new NotImplementedException();
+            var structName = s.StructName.Identifier;
+            if (!CanDeclareType(structName))
+            {
+                Error($"Type name {structName} is already declared in this module.", s.StructName);
+                return false; // TODO: resolve fields anyway
+            }
+            //Add to a dictionary of placeholders since we don't resolve the types until the second pass
+            // This allows, e.g. embedding one struct in another.
+            var placeholderDictionary = new Dictionary<string, AilurusDataType>();
+            foreach (var (fieldName, typeName) in s.Fields)
+            {
+                placeholderDictionary.Add(fieldName.Identifier, new PlaceholderType() { TypeName = typeName });
+            }
+
+            var structType = new StructType()
+            {
+                StructName = s.StructName.Identifier,
+                Definitions = placeholderDictionary
+            };
+            s.DataType = structType;
+            ModuleScope.TypeDeclarations.Add(structName, s);
+
+            return true;
         }
 
-        public void ResolveFunctionDeclarationFirstPass(FunctionDeclaration declaration)
+        void ResolveTypeDeclarationFirstPass(TypeDeclaration declaration)
+        {
+            bool added;
+            if (declaration is StructDeclaration s)
+            {
+                added = ResolveStructDeclarationFirstPass(s);
+            }
+            else if (declaration is TypeAliasDeclaration a)
+            {
+                added = ResolveAliasDeclarationFirstPass(a);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+
+            if (added)
+            {
+                declaration.State = TypeDeclaration.ResolutionState.Added;
+            }
+        }
+
+        void ResolveTypeDeclarationSecondPass(TypeDeclaration declaration)
+        {
+            if (declaration is StructDeclaration s)
+            {
+                ResolveStructDeclarationSecondPass(s);
+
+            }
+            else if (declaration is TypeAliasDeclaration a)
+            {
+                ResolveAliasDeclarationSecondPass(a);
+            }
+        }
+
+        void ResolveAliasDeclarationSecondPass(TypeAliasDeclaration alias)
+        {
+            alias.State = TypeDeclaration.ResolutionState.Resolving;
+
+            var aliasType = (AliasType)alias.DataType;
+            if (aliasType.BaseType is PlaceholderType placeholder)
+            {
+                ResolvePlaceholder(placeholder);
+                // Replace the placeholder with the resolved base type
+                aliasType.BaseType = placeholder.ResolvedType;
+            }
+
+            if (aliasType.BaseType is ErrorType)
+            {
+                Error($"Unable to declare type alias {alias.AliasName.Identifier}. Could not resolve type name {alias.AliasedTypeName.Name.Identifier}", alias.AliasName);
+            }
+
+            alias.State = TypeDeclaration.ResolutionState.Resolved;
+        }
+
+        void ResolveStructDeclarationSecondPass(StructDeclaration s)
+        {
+            s.State = TypeDeclaration.ResolutionState.Resolving;
+            var structType = (StructType)s.DataType;
+            foreach (var kvp in structType.Definitions)
+            {
+
+                if (kvp.Value is PlaceholderType placeholder)
+                {
+                    ResolvePlaceholder(placeholder);
+                }
+            }
+
+            // Replace the placeholder types with their resolved base types 
+            // Iterate over list of string to avoid iterator invalidation
+            var hadError = false;
+            foreach (var fieldName in structType.Definitions.Keys.ToList())
+            {
+                var placeholder = (PlaceholderType)structType.Definitions[fieldName];
+
+                structType.Definitions[fieldName] = placeholder.ResolvedType;
+                if (placeholder.ResolvedType is ErrorType)
+                {
+                    hadError = true;
+                }
+            }
+
+            if (hadError)
+            {
+                Error($"Unable to define struct {s.StructName.Identifier}. Unable to resolve one or more fields.", s.StructName);
+            }
+
+            s.State = TypeDeclaration.ResolutionState.Resolved;
+        }
+
+        void ResolveModuleVariableDeclarations(ModuleVariableDeclaration declaration)
+        {
+            ResolveLet(declaration.Let);
+        }
+
+        void ResolveFunctionDeclarationFirstPass(FunctionDeclaration declaration)
         {
             // Resolve the function type signature and name
             var functionName = declaration.FunctionName.Lexeme;
@@ -937,7 +1168,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         }
 
         //Todo: Sparate pass for control flow analysis
-        public bool ValidateReturn(List<StatementNode> statements)
+        bool ValidateReturn(List<StatementNode> statements)
         {
             if (statements.Count == 0)
             {
@@ -960,7 +1191,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             return allBranchesReturn;
         }
 
-        public void ResolveFunctionDeclarationSecondPass(FunctionDeclaration declaration)
+        void ResolveFunctionDeclarationSecondPass(FunctionDeclaration declaration)
         {
             EnterFunctionDefinition(declaration.FunctionType.ReturnType);
             declaration.ArgumentResolutions = new List<VariableResolution>();

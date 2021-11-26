@@ -209,20 +209,24 @@ namespace AilurusLang.Parsing.Parsers
             Consume(TokenType.LeftBrace, "Expected '{' after struct name");
 
             var initializers = new List<(Token, ExpressionNode)>();
-            while (Peek.Type != TokenType.RightBrace && !IsAtEnd)
+            if (!Check(TokenType.RightBrace))
             {
-                Consume(TokenType.Identifier, "Expected member name.");
-                var member = Previous;
-                Consume(TokenType.Colon, "Expected ':' after member name.");
-                var expression = Expression();
-
-                initializers.Add((member, expression));
+                do
+                {
+                    Consume(TokenType.Identifier, "Expected member name.");
+                    var member = Previous;
+                    Consume(TokenType.Colon, "Expected ':' after member name.");
+                    var expression = Expression();
+                    initializers.Add((member, expression));
+                } while (Match(TokenType.Comma));
             }
 
             if (IsAtEnd)
             {
                 RaiseError(name, "Unterminated struct initializer");
             }
+
+            Consume(TokenType.RightBrace, "Expected '}' after struct initializer.");
 
             return new StructInitialization()
             {
@@ -311,11 +315,21 @@ namespace AilurusLang.Parsing.Parsers
                 {
                     expr = ArgumentList(expr); //Embed the callee expression in the Call Exprssion
                 }
+                else if (Match(TokenType.Dot))
+                {
+                    var dot = Previous;
+                    var fieldName = Consume(TokenType.Identifier, "Expected identifier after '.'.");
+                    expr = new Get()
+                    {
+                        CallSite = expr,
+                        FieldName = fieldName,
+                        SourceStart = dot
+                    };
+                }
                 else
                 {
                     break;
                 }
-                // Todo: match '.'
             }
 
             return expr;
@@ -568,6 +582,8 @@ namespace AilurusLang.Parsing.Parsers
             Consume(TokenType.Colon, "Expected ':' after type alias.");
 
             var aliased = TypeName();
+
+            Consume(TokenType.Semicolon, "Expected ';' after type name.");
 
             return new TypeAliasDeclaration()
             {

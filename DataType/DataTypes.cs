@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using AilurusLang.Parsing.AST;
 
 namespace AilurusLang.DataType
 {
@@ -11,6 +12,12 @@ namespace AilurusLang.DataType
         }
 
         public virtual string DataTypeName { get => GetType().ToString(); }
+    }
+
+    public class PlaceholderType : AilurusDataType
+    {
+        public TypeName TypeName { get; set; }
+        public AilurusDataType ResolvedType { get; set; }
     }
 
     public class VoidType : AilurusDataType
@@ -78,9 +85,10 @@ namespace AilurusLang.DataType
 
     public class StructType : AilurusDataType
     {
-        public string TypeName { get; set; }
+        public string StructName { get; set; }
+        // TODO: enforce ordering for C- ABI
         public Dictionary<string, AilurusDataType> Definitions { get; set; }
-        public override string DataTypeName => TypeName;
+        public override string DataTypeName => $"struct {StructName}";
     }
     public class FunctionType : AilurusDataType
     {

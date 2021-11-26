@@ -14,10 +14,26 @@ namespace AilurusLang.Parsing.AST
         public bool IsExported { get; set; }
     }
 
-    public class TypeDeclaration : Declaration { }
+    public class TypeDeclaration : Declaration
+    {
+        public enum ResolutionState
+        {
+            NotStarted,
+            Added,
+            Resolving,
+            Resolved
+        }
+
+        public ResolutionState State { get; set; } = ResolutionState.NotStarted;
+
+    }
 
     public class BaseTypeDeclaration : TypeDeclaration
     {
+        public BaseTypeDeclaration()
+        {
+            State = ResolutionState.Resolved;
+        }
         public TypeName TypeName { get; set; }
     } //Used for base types
     public class TypeAliasDeclaration : TypeDeclaration

@@ -1,11 +1,12 @@
 # Tree Walker Interpreter
 
 ## Finish Functions
- 1. Finish Function Declaration Evaluation
- 2. Add Call Semantics
-    - Add return semantics
- 3. Add Module Variable Declarations
+ 1. ~~Finish Function Declaration Evaluation~~
+ 2. ~~Add Call Semantics~~
+    - ~~Add return semantics~~
+ 3. ~~Add Module Variable Declarations~~
  4. Add Struct Declarations
+   -- Add struct field reference syntax and semantics
  5. Add Type alias Declarations
  6. Add Module resolution
  7. Pointer semantics (without raw pointers or addition).
