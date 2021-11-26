@@ -10,7 +10,17 @@ namespace AilurusLang.Interpreter.Runtime
     public abstract class AilurusValue
     {
         public abstract bool AssertType(AilurusDataType dataType);
-        public abstract T GetAs<T>();
+        public virtual T GetAs<T>()
+        {
+            if (this is T t)
+            {
+                return t;
+            }
+            else
+            {
+                throw new RuntimeError($"Unable to convert struct to {nameof(T)}", 0, 0, string.Empty);
+            }
+        }
         public abstract string TypeName { get; }
     }
 
@@ -128,25 +138,10 @@ namespace AilurusLang.Interpreter.Runtime
                 return false;
             }
         }
-
-        public override T GetAs<T>()
-        {
-            if (this is T t)
-            {
-                return t;
-            }
-            // SHould not occur due to type checking
-            throw new RuntimeError($"Unable to convert function pointer to {nameof(T)}", 0, 0, string.Empty);
-        }
     }
 
     public class StructInstance : AilurusValue
     {
-        public override T GetAs<T>()
-        {
-            throw new RuntimeError($"Unable to convert struct to {nameof(T)}", 0, 0, string.Empty);
-        }
-
         public override string TypeName { get => StructType.ToString(); }
 
         public override bool AssertType(AilurusDataType dataType)
@@ -162,6 +157,6 @@ namespace AilurusLang.Interpreter.Runtime
         }
 
         public StructType StructType { get; set; }
-        public List<AilurusValue> Members { get; set; }
+        public Dictionary<string, AilurusValue> Members { get; set; }
     }
 }

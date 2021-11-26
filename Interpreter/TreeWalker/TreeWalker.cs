@@ -318,8 +318,33 @@ namespace AilurusLang.Interpreter.TreeWalker
                 ExpressionType.Variable => EvalVariableExpression((Variable)expr),
                 ExpressionType.Assign => EvalAssignExpression((Assign)expr),
                 ExpressionType.Call => EvalCallExpression((Call)expr),
+                ExpressionType.Get => EvalGetExpression((Get)expr),
+                ExpressionType.StructInitialization => EvalStructInitialization((StructInitialization)expr),
                 _ => throw new NotImplementedException(),
             };
+        }
+
+        AilurusValue EvalStructInitialization(StructInitialization expr)
+        {
+            var values = new Dictionary<string, AilurusValue>();
+            foreach (var (fieldName, initializer) in expr.Initializers)
+            {
+                var value = EvalExpression(initializer);
+                values.Add(fieldName.Identifier, value);
+            }
+
+            return new StructInstance()
+            {
+                StructType = (StructType)expr.DataType,
+                Members = values
+            };
+        }
+
+        AilurusValue EvalGetExpression(Get expr)
+        {
+            var callSite = EvalExpression(expr.CallSite).GetAs<StructInstance>();
+
+            return callSite.Members[expr.FieldName.Identifier];
         }
 
         AilurusValue EvalCallExpression(Call call)

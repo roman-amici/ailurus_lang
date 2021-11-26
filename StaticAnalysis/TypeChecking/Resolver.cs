@@ -258,6 +258,15 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             return placeholder.ResolvedType;
         }
 
+        AilurusDataType ResolveTypeName(Token name)
+        {
+            return ResolveTypeName(new TypeName()
+            {
+                Name = name,
+                IsPtr = false
+            });
+        }
+
         AilurusDataType ResolveTypeName(TypeName typeName)
         {
             var type = LookupTypeByName(typeName.Name.Lexeme);
@@ -489,14 +498,62 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     return ResolveCall((Call)expr);
                 case ExpressionType.Get:
                     return ResolveGet((Get)expr);
+                case ExpressionType.StructInitialization:
+                    return ResolveStructInitialization((StructInitialization)expr);
                 default:
                     throw new NotImplementedException();
             }
         }
 
+        AilurusDataType ResolveStructInitialization(StructInitialization expr)
+        {
+            var structName = expr.StructName.Identifier;
+            var type = ResolveTypeName(expr.StructName);
+            expr.DataType = type;
+
+            if (type is StructType structType)
+            {
+                expr.DataType = structType;
+
+                var fieldsIntialized = new HashSet<string>();
+                foreach (var (fieldName, initializer) in expr.Initializers)
+                {
+                    var fieldIdentifier = fieldName.Identifier;
+                    var initializerType = ResolveExpression(initializer);
+                    if (structType.Definitions.ContainsKey(fieldIdentifier))
+                    {
+                        if (fieldsIntialized.Contains(fieldIdentifier))
+                        {
+                            Error($"Field '{fieldIdentifier}' has already been initialized for struct '{structName}'.", fieldName);
+                        }
+                        else
+                        {
+                            fieldsIntialized.Add(fieldIdentifier);
+                            var fieldType = structType.Definitions[fieldIdentifier];
+                            if (!TypesAreEqual(initializerType, fieldType))
+                            {
+                                Error($"Field '{fieldIdentifier}' expected type '{fieldType.DataTypeName}' but instead found type '{initializerType.DataTypeName}'", fieldName);
+                            }
+                        }
+                    }
+                }
+
+                if (fieldsIntialized.Count != structType.Definitions.Count)
+                {
+                    Error($"Not all fields were initialized for struct '{structName}'.", expr.StructName);
+                }
+            }
+            else
+            {
+                Error($"Expected struct type but found type {type.DataTypeName}.", expr.StructName);
+            }
+
+            return type;
+        }
+
         AilurusDataType ResolveGet(Get expr)
         {
-            var callSiteType = ResolveExpression(expr);
+            var callSiteType = ResolveExpression(expr.CallSite);
 
             var (_, baseType) = GetBaseType(callSiteType);
 

@@ -18,6 +18,7 @@ namespace AilurusLang.Parsing.AST
         Assign,
         Call,
         Get,
+        Set,
         StructInitialization
     }
 
@@ -110,6 +111,14 @@ namespace AilurusLang.Parsing.AST
         public Get() : base(ExpressionType.Get) { }
         public ExpressionNode CallSite { get; set; }
         public Token FieldName { get; set; }
+    }
+
+    public class SetExpression : ExpressionNode
+    {
+        public SetExpression() : base(ExpressionType.Set) { }
+        public Token FieldName { get; set; }
+        public ExpressionNode CallSite { get; set; }
+        public ExpressionNode Value { get; set; }
     }
 
     public class StructInitialization : ExpressionNode

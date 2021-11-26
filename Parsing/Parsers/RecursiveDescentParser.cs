@@ -175,22 +175,20 @@ namespace AilurusLang.Parsing.Parsers
                 };
             }
 
+            if (Match(TokenType.Struct))
+            {
+                return StructInitializer();
+            }
+
             // Identifier-based
             if (Match(TokenType.Identifier))
             {
                 var name = Previous;
-                if (Check(TokenType.RightBrace))
+                return new Variable()
                 {
-                    return StructInitializer(name);
-                }
-                else
-                {
-                    return new Variable()
-                    {
-                        Name = name,
-                        SourceStart = Previous
-                    };
-                }
+                    Name = name,
+                    SourceStart = Previous
+                };
             }
 
             if (Match(TokenType.If))
@@ -203,8 +201,9 @@ namespace AilurusLang.Parsing.Parsers
             return null;
         }
 
-        StructInitialization StructInitializer(Token name)
+        StructInitialization StructInitializer()
         {
+            var name = Consume(TokenType.Identifier, "Expected identifer after 'struct'.");
             var sourceStart = Previous;
             Consume(TokenType.LeftBrace, "Expected '{' after struct name");
 
@@ -512,7 +511,16 @@ namespace AilurusLang.Parsing.Parsers
                         SourceStart = equalsToken
                     };
                 }
-                // Todo: Struct assignment
+                else if (expr is Get g)
+                {
+                    return new SetExpression()
+                    {
+                        FieldName = g.FieldName,
+                        CallSite = g.CallSite,
+                        Value = rvalue,
+                        SourceStart = equalsToken
+                    };
+                }
                 else
                 {
                     RaiseError(equalsToken, $"Cannot assign to {expr.SourceStart.Lexeme}.");

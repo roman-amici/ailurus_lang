@@ -275,12 +275,17 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
                     throw new RuntimeError("Cannot compare structs of different types.", b.Operator);
                 }
 
-                for (var i = 0; i < leftStruct.Members.Count; i++)
+                foreach (var key in leftStruct.Members.Keys)
                 {
-                    var equal = EvalEquality(leftStruct.Members[i], rightStruct.Members[i], b);
+                    if (!rightStruct.Members.ContainsKey(key))
+                    {
+                        result = false;
+                        return result;
+                    }
+                    var equal = EvalEquality(leftStruct.Members[key], rightStruct.Members[key], b);
                     if (!equal.GetAs<bool>())
                     {
-                        result = true;
+                        result = false;
                         return result;
                     }
                 }
@@ -630,7 +635,7 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
                     return new StructInstance()
                     {
                         StructType = structType,
-                        Members = (List<AilurusValue>)Value
+                        Members = (Dictionary<string, AilurusValue>)Value
                     };
                 case AliasType alias:
                     return ValueFromDatatype(Value, alias.BaseType);
