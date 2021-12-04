@@ -8,6 +8,8 @@ namespace AilurusLang.Interpreter.Runtime
     {
         Dictionary<Resolution, AilurusValue> Values { get; set; } = new Dictionary<Resolution, AilurusValue>();
 
+        public bool IsValid { get; set; } = true;
+
         public AilurusValue GetValue(Resolution resolution)
         {
             return Values[resolution];
@@ -17,6 +19,5 @@ namespace AilurusLang.Interpreter.Runtime
         {
             Values[resolution] = value;
         }
-
     }
 }

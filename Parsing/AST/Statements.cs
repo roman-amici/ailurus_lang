@@ -16,6 +16,7 @@ namespace AilurusLang.Parsing.AST
         Break,
         Continue,
         Return,
+        Free,
         // Temp
         Print
     }
@@ -106,6 +107,12 @@ namespace AilurusLang.Parsing.AST
     {
         public ReturnStatement() : base(StatementType.Return) { }
         public ExpressionNode ReturnValue { get; set; }
+    }
+
+    public class FreeStatement : StatementNode
+    {
+        public FreeStatement() : base(StatementType.Free) { }
+        public ExpressionNode Expr { get; set; }
     }
 
 }

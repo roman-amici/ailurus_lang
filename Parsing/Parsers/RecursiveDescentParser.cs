@@ -165,14 +165,9 @@ namespace AilurusLang.Parsing.Parsers
             // Grouping
             if (Match(TokenType.LeftParen))
             {
-                var sourceStart = Previous;
                 var inner = Expression();
                 Consume(TokenType.RightParen, "Unbalanced parenthesis.");
-                return new Grouping()
-                {
-                    Inner = inner,
-                    SourceStart = sourceStart
-                };
+                return inner;
             }
 
             if (Match(TokenType.Struct))
@@ -260,6 +255,20 @@ namespace AilurusLang.Parsing.Parsers
 
         ExpressionNode Unary()
         {
+            if (Match(TokenType.AddrOf))
+            {
+                var op = Previous;
+                var expr = Primary();
+
+                if (expr is Get || expr is Variable)
+                {
+                    return new AddrOfExpression()
+                    {
+                        OperateOn = expr,
+                        SourceStart = op
+                    };
+                }
+            }
             if (Match(
                 TokenType.Bang,
                 TokenType.Minus,
@@ -497,9 +506,13 @@ namespace AilurusLang.Parsing.Parsers
         {
             var expr = Or();
 
-            if (Match(TokenType.Equal))
+            if (Match(TokenType.Equal, TokenType.BackwardArrow))
             {
-                var equalsToken = Previous;
+                var assignmentToken = Previous;
+
+                // Dereference and then assign vs just assign
+                var pointerAssignment = assignmentToken.Type == TokenType.BackwardArrow;
+
                 var rvalue = Assignment(); // right associative
 
                 if (expr is Variable v)
@@ -508,7 +521,8 @@ namespace AilurusLang.Parsing.Parsers
                     {
                         Name = v.Name,
                         Assignment = rvalue,
-                        SourceStart = equalsToken
+                        SourceStart = assignmentToken,
+                        PointerAssign = pointerAssignment
                     };
                 }
                 else if (expr is Get g)
@@ -518,12 +532,13 @@ namespace AilurusLang.Parsing.Parsers
                         FieldName = g.FieldName,
                         CallSite = g.CallSite,
                         Value = rvalue,
-                        SourceStart = equalsToken
+                        SourceStart = assignmentToken,
+                        PointerAssign = pointerAssignment
                     };
                 }
                 else
                 {
-                    RaiseError(equalsToken, $"Cannot assign to {expr.SourceStart.Lexeme}.");
+                    RaiseError(assignmentToken, $"Cannot assign to {expr.SourceStart.Lexeme}.");
                 }
             }
 
@@ -721,6 +736,10 @@ namespace AilurusLang.Parsing.Parsers
             else if (Match(TokenType.Break, TokenType.Continue, TokenType.Return))
             {
                 return ControlStatement();
+            }
+            else if (Match(TokenType.Free))
+            {
+                return FreeStatement();
             }
 
             return ExpressionStatement();
@@ -924,6 +943,18 @@ namespace AilurusLang.Parsing.Parsers
             {
                 return ExpressionStatement();
             }
+        }
+
+        StatementNode FreeStatement()
+        {
+            var start = Previous;
+            var expr = Expression();
+
+            return new FreeStatement()
+            {
+                Expr = expr,
+                SourceStart = start
+            };
         }
 
         StatementNode ControlStatement()

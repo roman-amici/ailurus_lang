@@ -27,14 +27,16 @@ namespace AilurusLang.Interpreter.TreeWalker
 
         void PushBlockEnvironment()
         {
-            var env = CallStack[^1];
-            env.Add(new TreeWalkerEnvironment());
+            var blockEnvs = CallStack[^1];
+            blockEnvs.Add(new TreeWalkerEnvironment() { IsValid = true });
         }
 
         void PopBlockEnvironment()
         {
-            var env = CallStack[^1];
-            env.RemoveAt(env.Count - 1);
+            var blockEnvs = CallStack[^1];
+            var env = blockEnvs[^1];
+            blockEnvs.RemoveAt(blockEnvs.Count - 1);
+            env.IsValid = false;
         }
 
         void EnterFunctionEnvironment()
@@ -310,7 +312,6 @@ namespace AilurusLang.Interpreter.TreeWalker
             return expr.ExprType switch
             {
                 ExpressionType.Literal => Evaluator.EvalLiteral((Literal)expr),
-                ExpressionType.Grouping => EvalGrouping((Grouping)expr),
                 ExpressionType.Unary => EvalUnary((Unary)expr),
                 ExpressionType.Binary => EvalBinary((Binary)expr),
                 ExpressionType.BinaryShortCircut => EvalBinaryShortCircut((BinaryShortCircut)expr),
@@ -321,8 +322,46 @@ namespace AilurusLang.Interpreter.TreeWalker
                 ExpressionType.Get => EvalGetExpression((Get)expr),
                 ExpressionType.Set => EvalSetExpression((SetExpression)expr),
                 ExpressionType.StructInitialization => EvalStructInitialization((StructInitialization)expr),
+                ExpressionType.AddrOfExpression => EvalAddrOfExpression((AddrOfExpression)expr),
                 _ => throw new NotImplementedException(),
             };
+        }
+
+        Pointer EvalAddrOfExpression(AddrOfExpression expr)
+        {
+            if (expr.OperateOn is Variable varExpr)
+            {
+                var environment = GetEnvironmentForVariable(varExpr.Resolution, varExpr.Name);
+                return new StackPointer()
+                {
+                    Environment = environment,
+                    Variable = varExpr.Resolution
+                };
+            }
+            else if (expr.OperateOn is Get)
+            {
+                var fieldNamesReversed = new List<string>();
+                ExpressionNode callSite = expr.OperateOn;
+                while (callSite is Get g)
+                {
+                    fieldNamesReversed.Add(g.FieldName.Identifier);
+                    callSite = g.CallSite;
+                }
+
+                if (callSite is Variable v)
+                {
+                    var environment = GetEnvironmentForVariable(v.Resolution, v.Name);
+                    fieldNamesReversed.Reverse();
+                    return new StructMemberPointer()
+                    {
+                        FieldNames = fieldNamesReversed,
+                        Environment = environment,
+                        Variable = v.Resolution
+                    };
+                }
+            } // TODO: addrof deref
+
+            return null;
         }
 
         AilurusValue EvalStructInitialization(StructInitialization expr)
@@ -388,11 +427,6 @@ namespace AilurusLang.Interpreter.TreeWalker
             return returnValue;
         }
 
-        AilurusValue EvalGrouping(Grouping grouping)
-        {
-            return EvalExpression(grouping.Inner);
-        }
-
         AilurusValue EvalUnary(Unary unary)
         {
             var value = EvalExpression(unary.Expr);
@@ -400,8 +434,15 @@ namespace AilurusLang.Interpreter.TreeWalker
             {
                 TokenType.Bang => Evaluator.EvalUnaryBang(value, unary),
                 TokenType.Minus => Evaluator.EvalUnaryMinus(value, unary),
+                TokenType.At => EvalUnaryDereference(value, unary),
                 _ => throw new NotImplementedException(),
             };
+        }
+
+        AilurusValue EvalUnaryDereference(AilurusValue value, Unary unary)
+        {
+            var pointer = value.GetAs<Pointer>();
+            return pointer.Deref();
         }
 
         AilurusValue EvalBinary(Binary binary)
@@ -481,28 +522,27 @@ namespace AilurusLang.Interpreter.TreeWalker
             }
         }
 
-        AilurusValue EvalVariableExpression(Variable varExpr)
+        TreeWalkerEnvironment GetEnvironmentForVariable(Resolution resolution, Token Name)
         {
-
-            if (varExpr.Resolution is VariableResolution v)
+            if (resolution is VariableResolution v)
             {
                 if (!v.IsInitialized)
                 {
                     // TODO: Reject statically
-                    throw new RuntimeError("Referenced an uninitialized variable", varExpr.Name);
+                    throw new RuntimeError("Referenced an uninitialized variable", Name);
                 }
                 if (v.ScopeDepth is null)
                 {
-                    return ModuleEnvironment.GetValue(v);
+                    return ModuleEnvironment;
                 }
                 else
                 {
-                    return CallStack[^1][(int)v.ScopeDepth].GetValue(v);
+                    return CallStack[^1][(int)v.ScopeDepth];
                 }
             }
-            else if (varExpr.Resolution is FunctionResolution f)
+            else if (resolution is FunctionResolution f)
             {
-                return ModuleEnvironment.GetValue(f);
+                return ModuleEnvironment;
             }
             else
             {
@@ -510,17 +550,24 @@ namespace AilurusLang.Interpreter.TreeWalker
             }
         }
 
+        AilurusValue EvalVariableExpression(Variable varExpr)
+        {
+            var environment = GetEnvironmentForVariable(varExpr.Resolution, varExpr.Name);
+            return environment.GetValue(varExpr.Resolution);
+        }
+
         AilurusValue EvalAssignExpression(Assign assign)
         {
             var value = EvalExpression(assign.Assignment);
-            if (assign.Resolution.ScopeDepth == null)
+            var environment = GetEnvironmentForVariable(assign.Resolution, assign.Name);
+
+            if (assign.PointerAssign)
             {
-                ModuleEnvironment.SetValue(assign.Resolution, value);
+                environment.GetValue(assign.Resolution).GetAs<Pointer>().Assign(value);
             }
             else
             {
-                CallStack[^1][(int)assign.Resolution.ScopeDepth]
-                    .SetValue(assign.Resolution, value);
+                environment.SetValue(assign.Resolution, value);
             }
 
             return value;

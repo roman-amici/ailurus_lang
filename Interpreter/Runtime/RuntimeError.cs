@@ -9,6 +9,7 @@ namespace AilurusLang.Interpreter.Runtime
         public long? Column { get; set; }
         public string? SourceFile { get; set; }
 
+        public RuntimeError(string message) : this(message, 0, 0, string.Empty) { }
         public RuntimeError(string message, Token t) : this(message, t.Line, t.Column, t.SourceFile) { }
         public RuntimeError(string message, long line, long column, string sourceFile) : base(message)
         {

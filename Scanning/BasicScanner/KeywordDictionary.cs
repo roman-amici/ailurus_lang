@@ -48,7 +48,8 @@ namespace AilurusLang.Scanning.BasicScanner
 
             // Misc
             Add("sizeOf", TokenType.SizeOf);
-            Add("ptrTo", TokenType.PtrTo);
+            Add("addrOf", TokenType.AddrOf);
+            Add("free", TokenType.Free);
 
             //Temp
             Add("print", TokenType.DebugPrint);

@@ -9,7 +9,6 @@ namespace AilurusLang.Parsing.AST
     {
         None,
         Literal,
-        Grouping,
         Unary,
         Binary,
         BinaryShortCircut,
@@ -19,7 +18,8 @@ namespace AilurusLang.Parsing.AST
         Call,
         Get,
         Set,
-        StructInitialization
+        StructInitialization,
+        AddrOfExpression
     }
 
     public abstract class ExpressionNode : ASTNode
@@ -41,11 +41,6 @@ namespace AilurusLang.Parsing.AST
         public object Value { get; set; }
     }
 
-    public class Grouping : ExpressionNode
-    {
-        public Grouping() : base(ExpressionType.Grouping) { }
-        public ExpressionNode Inner { get; set; }
-    }
 
     public class Unary : ExpressionNode
     {
@@ -95,6 +90,8 @@ namespace AilurusLang.Parsing.AST
         public Token Name { get; set; }
         public VariableResolution Resolution { get; set; }
         public ExpressionNode Assignment { get; set; }
+
+        public bool PointerAssign { get; set; }
     }
 
     public class Call : ExpressionNode
@@ -126,6 +123,7 @@ namespace AilurusLang.Parsing.AST
         public Token FieldName { get; set; }
         public ExpressionNode CallSite { get; set; }
         public ExpressionNode Value { get; set; }
+        public bool PointerAssign { get; set; }
     }
 
     public class StructInitialization : ExpressionNode
@@ -133,5 +131,12 @@ namespace AilurusLang.Parsing.AST
         public StructInitialization() : base(ExpressionType.StructInitialization) { }
         public Token StructName { get; set; }
         public List<(Token, ExpressionNode)> Initializers { get; set; }
+    }
+
+    public class AddrOfExpression : ExpressionNode
+    {
+        public AddrOfExpression() : base(ExpressionType.AddrOfExpression) { }
+
+        public ExpressionNode OperateOn { get; set; }
     }
 }

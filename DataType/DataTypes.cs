@@ -117,7 +117,7 @@ namespace AilurusLang.DataType
     public class PointerType : AilurusDataType
     {
         public AilurusDataType BaseType { get; set; }
-        public override string DataTypeName => $"ptr {BaseType.DataTypeName}";
+        public override string DataTypeName => $"{BaseType.DataTypeName} ptr";
     }
 
     public class NullType : AilurusDataType

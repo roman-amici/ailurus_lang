@@ -31,6 +31,7 @@ namespace AilurusLang.Scanning
         LessEqual, // <=
         Minus, // -
         Arrow, // ->
+        BackwardArrow, // <-
         Amp, // &
         AmpAmp, // &&
         Bar, // |
@@ -86,9 +87,10 @@ namespace AilurusLang.Scanning
         Import,
         From,
 
-        // Misc
+        // Memory Operators
         SizeOf,
-        PtrTo,
+        AddrOf,
+        Free,
 
         DebugPrint,
 

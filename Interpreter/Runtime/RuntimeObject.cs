@@ -125,6 +125,169 @@ namespace AilurusLang.Interpreter.Runtime
         }
     }
 
+    public abstract class Pointer : AilurusValue
+    {
+        public abstract AilurusValue Deref();
+        public abstract void Assign(AilurusValue value);
+
+        public override string TypeName => "Pointer";
+
+        public bool IsNull { get; protected set; }
+
+        public virtual bool IsValid
+        {
+            get => !IsNull;
+        }
+    }
+
+    public class NullPointer : Pointer
+    {
+        public NullPointer() : base()
+        {
+            IsNull = true;
+        }
+
+        public override bool AssertType(AilurusDataType dataType)
+        {
+            if (dataType is PointerType)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public override void Assign(AilurusValue value)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override AilurusValue Deref()
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class StackPointer : Pointer
+    {
+        public TreeWalkerEnvironment Environment { get; set; }
+        public Resolution Variable { get; set; }
+
+        public override bool IsValid
+        {
+            get
+            {
+                if (!IsNull)
+                {
+                    return Environment.IsValid;
+                }
+                return false;
+            }
+        }
+
+        public override bool AssertType(AilurusDataType dataType)
+        {
+            if (dataType is PointerType p && IsValid)
+            {
+                var variable = Environment.GetValue(Variable);
+                return variable.AssertType(p.BaseType);
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public override AilurusValue Deref()
+        {
+            if (IsValid)
+            {
+                return Environment.GetValue(Variable);
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        public override void Assign(AilurusValue value)
+        {
+            if (IsValid)
+            {
+                Environment.SetValue(Variable, value);
+            }
+        }
+    }
+
+    public class StructMemberPointer : StackPointer
+    {
+        public List<string> FieldNames { get; set; }
+
+        private StructInstance GetBaseStructInstance()
+        {
+            var value = base.Deref();
+            StructInstance instance = null;
+            foreach (var name in FieldNames)
+            {
+                while (value is Pointer p)
+                {
+                    value = p.Deref();
+                }
+                instance = value.GetAs<StructInstance>();
+                value = instance.Members[name];
+            }
+
+            return instance;
+        }
+
+        public override void Assign(AilurusValue value)
+        {
+            var instance = GetBaseStructInstance();
+            instance.Members[FieldNames[^1]] = value;
+        }
+
+        public override AilurusValue Deref()
+        {
+            var instance = GetBaseStructInstance();
+            return instance.Members[FieldNames[^1]];
+        }
+    }
+
+    public class HeapPointer : Pointer
+    {
+        public AilurusValue Value { get; set; }
+        public bool Initialized { get; set; } = false;
+
+        public override bool IsValid
+        {
+            get => !IsNull && Initialized;
+        }
+
+        public override bool AssertType(AilurusDataType dataType)
+        {
+            if (dataType is PointerType p && IsValid)
+            {
+                return Value.AssertType(p.BaseType);
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public override void Assign(AilurusValue value)
+        {
+            Value = value;
+        }
+
+        public override AilurusValue Deref()
+        {
+            return Value;
+        }
+    }
+
     public class FunctionPointer : AilurusValue
     {
         public FunctionDeclaration FunctionDeclaration { get; set; }

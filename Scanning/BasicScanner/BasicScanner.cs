@@ -192,6 +192,10 @@ namespace AilurusLang.Scanning.BasicScanner
                     {
                         return CreateToken(TokenType.LessEqual);
                     }
+                    else if (Match('-'))
+                    {
+                        return CreateToken(TokenType.BackwardArrow);
+                    }
                     else
                     {
                         return CreateToken(TokenType.Less);

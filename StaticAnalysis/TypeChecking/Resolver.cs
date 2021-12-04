@@ -349,21 +349,28 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             return t1BaseType.GetType() == t2BaseType.GetType();
         }
 
-        bool CanAssignTo(AilurusDataType assertedType, AilurusDataType initializerType)
+        bool CanAssignTo(AilurusDataType lhsType, AilurusDataType rhsType, bool pointerAssign)
         {
-            if (assertedType is ErrorType || initializerType is ErrorType)
+            if (lhsType is ErrorType || rhsType is ErrorType)
             {
                 return true;
             }
 
+            var assertedType = lhsType;
+            // Do we dereference before we assign?
+            if (pointerAssign)
+            {
+                assertedType = DereferenceType(assertedType);
+            }
+
             // Check for facile equality first as an optimization
-            if (assertedType == initializerType)
+            if (assertedType == rhsType)
             {
                 return true;
             }
 
             var (t1PtrCount, t1BaseType) = GetBaseType(assertedType);
-            var (t2PtrCount, t2BaseType) = GetBaseType(initializerType);
+            var (t2PtrCount, t2BaseType) = GetBaseType(rhsType);
 
             if (t1PtrCount == 0 && t2PtrCount == 0)
             {
@@ -377,9 +384,13 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     return false;
                 }
             }
+            else if (t1PtrCount > 0 && t2BaseType is NullType)
+            {
+                return true;
+            }
             else
             {
-                return TypesAreEqual(assertedType, initializerType);
+                return TypesAreEqual(assertedType, rhsType);
             }
         }
 
@@ -457,7 +468,6 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 BinaryLike b => IsStaticExpression(b.Left) && IsStaticExpression(b.Right),
                 Literal _ => true,
                 Unary u => IsStaticExpression(u.Expr),
-                Grouping g => IsStaticExpression(g.Inner),
                 IfExpression i => IsStaticExpression(i.Predicate)
                                     && IsStaticExpression(i.TrueExpr)
                                     && IsStaticExpression(i.FalseExpr),
@@ -469,6 +479,34 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         bool CanDeclareType(string type)
         {
             return !ModuleScope.TypeDeclarations.ContainsKey(type);
+        }
+
+        AilurusDataType DereferenceType(AilurusDataType type)
+        {
+            if (type is AliasType a)
+            {
+                return DereferenceType(a.BaseType);
+            }
+            else if (type is PointerType p)
+            {
+                return p.BaseType;
+            }
+            else
+            {
+                return ErrorType.Instance;
+            }
+        }
+
+        bool IsPointerType(AilurusDataType type)
+        {
+            if (type is AliasType a)
+            {
+                return IsPointerType(a.BaseType);
+            }
+            else
+            {
+                return type is PointerType;
+            }
         }
 
         #endregion
@@ -485,9 +523,6 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     return ResolveBinary((BinaryLike)expr);
                 case ExpressionType.Unary:
                     return ResolveUnary((Unary)expr);
-                case ExpressionType.Grouping:
-                    var grouping = (Grouping)expr;
-                    return ResolveExpression(grouping.Inner);
                 case ExpressionType.IfExpression:
                     return ResolveIfExpression((IfExpression)expr);
                 case ExpressionType.Variable:
@@ -502,9 +537,22 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     return ResolveSet((SetExpression)expr);
                 case ExpressionType.StructInitialization:
                     return ResolveStructInitialization((StructInitialization)expr);
+                case ExpressionType.AddrOfExpression:
+                    return ResolveAddrOfExpression((AddrOfExpression)expr);
                 default:
                     throw new NotImplementedException();
             }
+        }
+
+        AilurusDataType ResolveAddrOfExpression(AddrOfExpression expr)
+        {
+            var exprType = ResolveExpression(expr.OperateOn);
+            var ptrType = new PointerType()
+            {
+                BaseType = exprType,
+            };
+            expr.DataType = ptrType;
+            return ptrType;
         }
 
         AilurusDataType ResolveStructInitialization(StructInitialization expr)
@@ -586,7 +634,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             var fieldType = ResolveFieldReference(expr, out StructType structType);
             if (structType != null)
             {
-                if (!TypesAreEqual(valueType, fieldType))
+                if (!CanAssignTo(valueType, fieldType, expr.PointerAssign))
                 {
                     Error($"Unable to assign expression of type '{valueType.DataTypeName}' to field of type '{fieldType.DataTypeName}'.", expr.SourceStart);
                 }
@@ -627,7 +675,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 if (i < argumentTypes.Count)
                 {
                     var functionArgType = argumentTypes[i];
-                    if (!CanAssignTo(functionArgType, callArgType))
+                    if (!CanAssignTo(functionArgType, callArgType, false))
                     {
                         Error($"Argument {i} with type {functionArgType.DataTypeName} does not match given expression of type {callArgType.DataTypeName}", call.ArgumentList[i].SourceStart);
                     }
@@ -649,12 +697,19 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             {
                 expr.Resolution = v;
                 expr.Resolution.IsInitialized = true;
+
+                var lhsType = v.DataType;
+                if (!CanAssignTo(lhsType, assignment, expr.PointerAssign))
+                {
+                    Error($"Cannot assign value of type {assignment.DataTypeName} to value of type {lhsType.DataTypeName}.", expr.SourceStart);
+                }
             }
             else
             {
                 Error($"Cannot assign to {expr.Name.Lexeme}", expr.Name);
             }
 
+            expr.DataType = assignment;
             return assignment;
         }
 
@@ -834,6 +889,13 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                         UnaryError(unary, inner);
                     }
                     break;
+                case TokenType.At:
+                    unary.DataType = DereferenceType(inner);
+                    if (unary.DataType is ErrorType)
+                    {
+                        UnaryError(unary, unary.DataType);
+                    }
+                    break;
                 default:
                     throw new NotImplementedException();
             }
@@ -927,7 +989,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 return;
             }
 
-            if (!CanAssignTo(assertedType, initializerType))
+            // TODO: Allow pointer assignments in let expressions
+            if (!CanAssignTo(assertedType, initializerType, false))
             {
                 Error($"Can't assing type {initializerType.DataTypeName} to type {assertedType.DataTypeName}", let.SourceStart);
                 return;
@@ -1009,6 +1072,15 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
         }
 
+        void ResolveFreeStatement(FreeStatement freeStatement)
+        {
+            var expression = ResolveExpression(freeStatement.Expr);
+            if (!IsPointerType(expression))
+            {
+                Error($"Argument to 'free' operator must be a pointer type, found {expression.DataTypeName}", freeStatement.SourceStart);
+            }
+        }
+
         void ResolveReturnStatement(ReturnStatement returnStatement)
         {
             if (!IsInFunctionDefinition)
@@ -1055,6 +1127,9 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     break;
                 case StatementType.Return:
                     ResolveReturnStatement((ReturnStatement)statement);
+                    break;
+                case StatementType.Free:
+                    ResolveFreeStatement((FreeStatement)statement);
                     break;
                 default:
                     throw new NotImplementedException();
