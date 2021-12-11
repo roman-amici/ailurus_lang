@@ -79,6 +79,7 @@ namespace AilurusLang.Scanning
         Static, // 
         Volatile,
         Mut,
+        Var,
         Ptr,
 
         // Modules

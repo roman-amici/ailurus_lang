@@ -39,6 +39,7 @@ namespace AilurusLang.Scanning.BasicScanner
             Add("volatile", TokenType.Volatile);
             Add("mut", TokenType.Mut);
             Add("ptr", TokenType.Ptr);
+            Add("var", TokenType.Var);
 
             // Modules
             Add("module", TokenType.Module);

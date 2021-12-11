@@ -93,6 +93,7 @@ namespace AilurusLang.DataType
     public class FunctionType : AilurusDataType
     {
         public AilurusDataType ReturnType { get; set; }
+        public List<bool> ArgumentMutable { get; set; }
         public List<AilurusDataType> ArgumentTypes { get; set; }
         public override string DataTypeName
         {
@@ -116,6 +117,7 @@ namespace AilurusLang.DataType
 
     public class PointerType : AilurusDataType
     {
+        public bool IsVariable { get; set; }
         public AilurusDataType BaseType { get; set; }
         public override string DataTypeName => $"{BaseType.DataTypeName} ptr";
     }

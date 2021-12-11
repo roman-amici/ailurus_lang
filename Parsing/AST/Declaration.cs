@@ -59,7 +59,7 @@ namespace AilurusLang.Parsing.AST
         public List<StatementNode> Statements { get; set; }
 
         // Nominal types
-        public List<(Token, TypeName)> Arguments { get; set; }
+        public List<FunctionArgumentDeclaration> Arguments { get; set; }
         public TypeName ReturnTypeName { get; set; }
 
         // Resolved Type

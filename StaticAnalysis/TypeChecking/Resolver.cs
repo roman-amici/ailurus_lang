@@ -284,7 +284,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             {
                 return new PointerType()
                 {
-                    BaseType = type
+                    BaseType = type,
+                    IsVariable = typeName.IsVariable
                 };
             }
             else
@@ -293,14 +294,16 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
         }
 
-        (int, AilurusDataType) GetBaseType(AilurusDataType t)
+        AilurusDataType GetBaseType(AilurusDataType t, out int ptrCount, out bool isVariable)
         {
-            var ptrCount = 0;
+            isVariable = false;
+            ptrCount = 0;
             AilurusDataType baseType = t;
             while (baseType is PointerType || baseType is AliasType)
             {
                 if (baseType is PointerType p)
                 {
+                    isVariable = isVariable || p.IsVariable;
                     ptrCount++;
                     baseType = p.BaseType;
                 }
@@ -310,15 +313,20 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 }
             }
 
-            return (ptrCount, baseType);
+            return baseType;
         }
 
         bool TypesAreEqual(AilurusDataType t1, AilurusDataType t2)
         {
-            var (t1PtrCount, t1BaseType) = GetBaseType(t1);
-            var (t2PtrCount, t2BaseType) = GetBaseType(t2);
+            var t1BaseType = GetBaseType(t1, out int t1PtrCount, out bool t1Variable);
+            var t2BaseType = GetBaseType(t2, out int t2PtrCount, out bool t2Variable);
 
             if (t1PtrCount != t2PtrCount)
+            {
+                return false;
+            }
+
+            if (t1Variable != t2Variable)
             {
                 return false;
             }
@@ -349,18 +357,25 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             return t1BaseType.GetType() == t2BaseType.GetType();
         }
 
-        bool CanAssignTo(AilurusDataType lhsType, AilurusDataType rhsType, bool pointerAssign)
+        bool CanAssignTo(AilurusDataType lhsType, AilurusDataType rhsType, bool pointerAssign, out string errorMessage)
         {
+            errorMessage = string.Empty;
             if (lhsType is ErrorType || rhsType is ErrorType)
             {
                 return true;
             }
 
             var assertedType = lhsType;
+            bool lhsIsVariable = false;
             // Do we dereference before we assign?
             if (pointerAssign)
             {
-                assertedType = DereferenceType(assertedType);
+                assertedType = DereferenceType(assertedType, out lhsIsVariable);
+                if (!lhsIsVariable)
+                {
+                    errorMessage = "Cannot mutate constant pointer.";
+                    return false;
+                }
             }
 
             // Check for facile equality first as an optimization
@@ -369,29 +384,45 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 return true;
             }
 
-            var (t1PtrCount, t1BaseType) = GetBaseType(assertedType);
-            var (t2PtrCount, t2BaseType) = GetBaseType(rhsType);
+            var lhsBaseType = GetBaseType(assertedType, out int lhsPtrCount, out bool _);
+            var rhsBaseType = GetBaseType(rhsType, out int rhsPtrCount, out bool rhsIsVariable);
 
-            if (t1PtrCount == 0 && t2PtrCount == 0)
+            var genericError = $"Cannot assign value of type {rhsType.DataTypeName} to value of type {assertedType.DataTypeName}.";
+            if (lhsPtrCount == 0 && rhsPtrCount == 0)
             {
-                if (AilurusDataType.IsNumeric(t1BaseType) &&
-                    AilurusDataType.IsNumeric(t2BaseType))
+                if (AilurusDataType.IsNumeric(lhsBaseType) &&
+                    AilurusDataType.IsNumeric(rhsBaseType))
                 {
                     return true;
                 }
                 else
                 {
+                    errorMessage = genericError;
                     return false;
                 }
             }
-            else if (t1PtrCount > 0 && t2BaseType is NullType)
+            else if (lhsPtrCount > 0)
             {
-                return true;
+                if (rhsBaseType is NullType)
+                {
+                    return true;
+                }
+                if (lhsIsVariable && !rhsIsVariable)
+                {
+                    errorMessage = $"Cannot assign variable pointer to constant pointer without a cast.";
+                    return false;
+                }
+                return lhsPtrCount == rhsPtrCount && TypesAreEqual(lhsBaseType, rhsBaseType);
             }
-            else
+
+            var result = TypesAreEqual(assertedType, rhsType);
+            if (!result)
             {
-                return TypesAreEqual(assertedType, rhsType);
-            }
+                errorMessage = genericError;
+            };
+
+            return result;
+
         }
 
         AilurusDataType GetNumericOperatorCoercion(AilurusDataType t1, AilurusDataType t2)
@@ -481,14 +512,16 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             return !ModuleScope.TypeDeclarations.ContainsKey(type);
         }
 
-        AilurusDataType DereferenceType(AilurusDataType type)
+        AilurusDataType DereferenceType(AilurusDataType type, out bool isVariable)
         {
+            isVariable = false;
             if (type is AliasType a)
             {
-                return DereferenceType(a.BaseType);
+                return DereferenceType(a.BaseType, out isVariable);
             }
             else if (type is PointerType p)
             {
+                isVariable = p.IsVariable;
                 return p.BaseType;
             }
             else
@@ -580,9 +613,9 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                         {
                             fieldsIntialized.Add(fieldIdentifier);
                             var fieldType = structType.Definitions[fieldIdentifier];
-                            if (!TypesAreEqual(initializerType, fieldType))
+                            if (!CanAssignTo(initializerType, fieldType, false, out string errorMessage))
                             {
-                                Error($"Field '{fieldIdentifier}' expected type '{fieldType.DataTypeName}' but instead found type '{initializerType.DataTypeName}'", fieldName);
+                                Error(errorMessage, fieldName);
                             }
                         }
                     }
@@ -606,7 +639,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             innerStruct = null;
             var callSiteType = ResolveExpression(expr.CallSite);
 
-            var (_, baseType) = GetBaseType(callSiteType);
+            var baseType = GetBaseType(callSiteType, out int _, out bool _);
 
             if (baseType is StructType structType)
             {
@@ -634,9 +667,9 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             var fieldType = ResolveFieldReference(expr, out StructType structType);
             if (structType != null)
             {
-                if (!CanAssignTo(valueType, fieldType, expr.PointerAssign))
+                if (!CanAssignTo(valueType, fieldType, expr.PointerAssign, out string errorMessage))
                 {
-                    Error($"Unable to assign expression of type '{valueType.DataTypeName}' to field of type '{fieldType.DataTypeName}'.", expr.SourceStart);
+                    Error(errorMessage, expr.SourceStart);
                 }
             }
 
@@ -675,7 +708,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 if (i < argumentTypes.Count)
                 {
                     var functionArgType = argumentTypes[i];
-                    if (!CanAssignTo(functionArgType, callArgType, false))
+                    if (!CanAssignTo(functionArgType, callArgType, false, out _))
                     {
                         Error($"Argument {i} with type {functionArgType.DataTypeName} does not match given expression of type {callArgType.DataTypeName}", call.ArgumentList[i].SourceStart);
                     }
@@ -695,13 +728,17 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
             else if (declaration is VariableResolution v)
             {
+                if (!expr.PointerAssign && !v.IsMutable)
+                {
+                    Error($"Cannot assign to variable {v.Name} since it was not declared as mutable.", expr.SourceStart);
+                }
                 expr.Resolution = v;
                 expr.Resolution.IsInitialized = true;
 
                 var lhsType = v.DataType;
-                if (!CanAssignTo(lhsType, assignment, expr.PointerAssign))
+                if (!CanAssignTo(lhsType, assignment, expr.PointerAssign, out string errorMessage))
                 {
-                    Error($"Cannot assign value of type {assignment.DataTypeName} to value of type {lhsType.DataTypeName}.", expr.SourceStart);
+                    Error(errorMessage, expr.SourceStart);
                 }
             }
             else
@@ -890,7 +927,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     }
                     break;
                 case TokenType.At:
-                    unary.DataType = DereferenceType(inner);
+                    unary.DataType = DereferenceType(inner, out _);
                     if (unary.DataType is ErrorType)
                     {
                         UnaryError(unary, unary.DataType);
@@ -990,9 +1027,9 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
 
             // TODO: Allow pointer assignments in let expressions
-            if (!CanAssignTo(assertedType, initializerType, false))
+            if (!CanAssignTo(assertedType, initializerType, false, out string errorMessage))
             {
-                Error($"Can't assing type {initializerType.DataTypeName} to type {assertedType.DataTypeName}", let.SourceStart);
+                Error(errorMessage, let.SourceStart);
                 return;
             }
 
@@ -1090,7 +1127,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
             //TODO: handle type checking
             var returnType = ResolveExpression(returnStatement.ReturnValue);
-            if (!TypesAreEqual(returnType, CurrentFunctionReturnType))
+            if (!CanAssignTo(returnType, CurrentFunctionReturnType, false, out _))
             {
                 Error($"Return statement has return type of {returnType.DataTypeName} which is incompatible with function return type of {CurrentFunctionReturnType.DataTypeName}", returnStatement.SourceStart);
             }
@@ -1292,14 +1329,16 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             var functionName = declaration.FunctionName.Lexeme;
 
             var argumentTypes = new List<AilurusDataType>();
-            foreach (var (_, typeName) in declaration.Arguments)
+            var argumentMutable = new List<bool>();
+            foreach (var argument in declaration.Arguments)
             {
-                var type = ResolveTypeName(typeName);
+                var type = ResolveTypeName(argument.TypeName);
                 if (!IsValidFunctionArgumentType(type))
                 {
-                    Error($"Type {type.DataTypeName} is not a valid type for function arguments.", typeName.Name);
+                    Error($"Type {type.DataTypeName} is not a valid type for a function argument", argument.TypeName.Name);
                 }
                 argumentTypes.Add(type);
+                argumentMutable.Add(argument.IsMutable);
             }
 
             var returnType = ResolveTypeName(declaration.ReturnTypeName);
@@ -1307,7 +1346,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             declaration.FunctionType = new FunctionType()
             {
                 ArgumentTypes = argumentTypes,
-                ReturnType = returnType
+                ArgumentMutable = argumentMutable,
+                ReturnType = returnType,
             };
 
             if (!CanDeclareName(functionName))
@@ -1352,11 +1392,10 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             declaration.ArgumentResolutions = new List<VariableResolution>();
             for (var i = 0; i < declaration.Arguments.Count; i++)
             {
-                var (argumentName, _) = declaration.Arguments[i];
+                var argument = declaration.Arguments[i];
                 var dataType = declaration.FunctionType.ArgumentTypes[i];
 
-                // TODO: handle mutability
-                var resolution = AddVariableToCurrentScope(argumentName, dataType, true, true);
+                var resolution = AddVariableToCurrentScope(argument.Name, dataType, argument.IsMutable, true);
                 declaration.ArgumentResolutions.Add(resolution);
             }
 

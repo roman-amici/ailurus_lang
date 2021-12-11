@@ -34,5 +34,13 @@ namespace AilurusLang.Parsing.AST
     {
         public Token Name { get; set; }
         public bool IsPtr { get; set; }
+        public bool IsVariable { get; set; }
+    }
+
+    public struct FunctionArgumentDeclaration
+    {
+        public Token Name { get; set; }
+        public TypeName TypeName { get; set; }
+        public bool IsMutable { get; set; }
     }
 }

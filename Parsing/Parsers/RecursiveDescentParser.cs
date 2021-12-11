@@ -258,7 +258,7 @@ namespace AilurusLang.Parsing.Parsers
             if (Match(TokenType.AddrOf))
             {
                 var op = Previous;
-                var expr = Primary();
+                var expr = Call();
 
                 if (expr is Get || expr is Variable)
                 {
@@ -651,15 +651,22 @@ namespace AilurusLang.Parsing.Parsers
 
             Consume(TokenType.LeftParen, "Expected '(' after 'fn'.");
 
-            var functionArguments = new List<(Token, TypeName)>();
+            var functionArguments = new List<FunctionArgumentDeclaration>();
             if (!Check(TokenType.RightParen))
             {
                 do
                 {
+                    var isMutable = Match(TokenType.Mut);
+
                     var argumentName = Consume(TokenType.Identifier, "Expected argument name.");
                     Consume(TokenType.Colon, "Expected ':' after argument name");
                     var argumentType = TypeName();
-                    functionArguments.Add((argumentName, argumentType));
+                    functionArguments.Add(new FunctionArgumentDeclaration()
+                    {
+                        Name = argumentName,
+                        TypeName = argumentType,
+                        IsMutable = isMutable
+                    });
                 } while (Match(TokenType.Comma));
             }
             Consume(TokenType.RightParen, "Expected ')' after function parameters.");
@@ -685,17 +692,15 @@ namespace AilurusLang.Parsing.Parsers
 
         TypeName TypeName()
         {
+            bool isVariable = Match(TokenType.Var);
             var name = Consume(TokenType.Identifier, "Expected type name after ':'");
-            bool isPtr = false;
-            if (Match(TokenType.Ptr))
-            {
-                isPtr = true;
-            }
+            bool isPtr = Match(TokenType.Ptr);
 
             return new TypeName()
             {
                 Name = name,
-                IsPtr = isPtr
+                IsPtr = isPtr,
+                IsVariable = isVariable
             };
         }
 
@@ -766,13 +771,12 @@ namespace AilurusLang.Parsing.Parsers
             bool isMutable = false;
             var letToken = Previous;
 
-            var name = Consume(TokenType.Identifier, "Expected name after 'let'");
-
-            // TODO: Parse static and volatile as well
             if (Match(TokenType.Mut))
             {
                 isMutable = true;
             }
+
+            var name = Consume(TokenType.Identifier, "Expected name after 'let'");
 
             if (Match(TokenType.Colon))
             {
