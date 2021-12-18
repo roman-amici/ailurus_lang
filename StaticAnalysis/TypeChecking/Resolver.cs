@@ -583,6 +583,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             var ptrType = new PointerType()
             {
                 BaseType = exprType,
+                IsVariable = expr.VarAddr
             };
             expr.DataType = ptrType;
             return ptrType;

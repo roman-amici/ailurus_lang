@@ -91,6 +91,7 @@ namespace AilurusLang.Scanning
         // Memory Operators
         SizeOf,
         AddrOf,
+        VarAddrOf,
         Free,
 
         DebugPrint,

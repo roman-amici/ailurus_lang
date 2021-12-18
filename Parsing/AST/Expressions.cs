@@ -138,5 +138,6 @@ namespace AilurusLang.Parsing.AST
         public AddrOfExpression() : base(ExpressionType.AddrOfExpression) { }
 
         public ExpressionNode OperateOn { get; set; }
+        public bool VarAddr { get; set; }
     }
 }

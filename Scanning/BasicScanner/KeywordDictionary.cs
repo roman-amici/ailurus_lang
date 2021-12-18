@@ -50,6 +50,7 @@ namespace AilurusLang.Scanning.BasicScanner
             // Misc
             Add("sizeOf", TokenType.SizeOf);
             Add("addrOf", TokenType.AddrOf);
+            Add("varAddrOf", TokenType.VarAddrOf);
             Add("free", TokenType.Free);
 
             //Temp

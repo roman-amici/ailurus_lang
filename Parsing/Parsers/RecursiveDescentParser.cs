@@ -255,7 +255,7 @@ namespace AilurusLang.Parsing.Parsers
 
         ExpressionNode Unary()
         {
-            if (Match(TokenType.AddrOf))
+            if (Match(TokenType.AddrOf, TokenType.VarAddrOf))
             {
                 var op = Previous;
                 var expr = Call();
@@ -265,7 +265,8 @@ namespace AilurusLang.Parsing.Parsers
                     return new AddrOfExpression()
                     {
                         OperateOn = expr,
-                        SourceStart = op
+                        SourceStart = op,
+                        VarAddr = (op.Type == TokenType.VarAddrOf)
                     };
                 }
             }
