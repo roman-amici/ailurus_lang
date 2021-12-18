@@ -258,7 +258,7 @@ namespace AilurusLang.Parsing.Parsers
             if (Match(TokenType.AddrOf, TokenType.VarAddrOf))
             {
                 var op = Previous;
-                var expr = Call();
+                var expr = Unary();
 
                 if (expr is Get || expr is Variable)
                 {
@@ -270,14 +270,25 @@ namespace AilurusLang.Parsing.Parsers
                     };
                 }
             }
+            else if (Match(TokenType.At))
+            {
+                var op = Previous;
+                var expr = Unary();
+
+                return new Unary()
+                {
+                    Operator = op,
+                    Expr = expr,
+                    SourceStart = op,
+                };
+            }
             if (Match(
                 TokenType.Bang,
-                TokenType.Minus,
-                TokenType.At
+                TokenType.Minus
             ))
             {
                 var op = Previous;
-                var expr = Primary();
+                var expr = Unary();
 
                 return new Unary()
                 {

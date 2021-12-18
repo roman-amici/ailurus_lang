@@ -668,7 +668,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             var fieldType = ResolveFieldReference(expr, out StructType structType);
             if (structType != null)
             {
-                if (!CanAssignTo(valueType, fieldType, expr.PointerAssign, out string errorMessage))
+                if (!CanAssignTo(fieldType, valueType, expr.PointerAssign, out string errorMessage))
                 {
                     Error(errorMessage, expr.SourceStart);
                 }

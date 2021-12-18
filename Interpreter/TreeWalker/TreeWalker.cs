@@ -382,9 +382,15 @@ namespace AilurusLang.Interpreter.TreeWalker
 
         AilurusValue EvalGetExpression(Get expr)
         {
-            var callSite = EvalExpression(expr.CallSite).GetAs<StructInstance>();
+            var callSite = EvalExpression(expr.CallSite);
 
-            return callSite.Members[expr.FieldName.Identifier];
+            while (callSite is Pointer ptr)
+            {
+                callSite = ptr.Deref();
+            }
+
+            var value = callSite.GetAs<StructInstance>();
+            return value.Members[expr.FieldName.Identifier];
         }
 
         AilurusValue EvalCallExpression(Call call)
@@ -575,10 +581,23 @@ namespace AilurusLang.Interpreter.TreeWalker
 
         AilurusValue EvalSetExpression(SetExpression expr)
         {
-            var callSite = EvalExpression(expr.CallSite).GetAs<StructInstance>();
-            var value = EvalExpression(expr.Value);
+            var callSite = EvalExpression(expr.CallSite);
+            while (callSite is Pointer ptr)
+            {
+                callSite = ptr.Deref();
+            }
 
-            callSite.Members[expr.FieldName.Identifier] = value;
+            var value = EvalExpression(expr.Value);
+            var structInstance = callSite.GetAs<StructInstance>();
+
+            if (expr.PointerAssign)
+            {
+                structInstance.Members[expr.FieldName.Identifier].GetAs<Pointer>().Assign(value);
+            }
+            else
+            {
+                structInstance.Members[expr.FieldName.Identifier] = value;
+            }
 
             return value;
         }
