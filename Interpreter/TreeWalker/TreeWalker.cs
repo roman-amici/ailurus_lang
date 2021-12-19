@@ -323,7 +323,52 @@ namespace AilurusLang.Interpreter.TreeWalker
                 ExpressionType.Set => EvalSetExpression((SetExpression)expr),
                 ExpressionType.StructInitialization => EvalStructInitialization((StructInitialization)expr),
                 ExpressionType.AddrOfExpression => EvalAddrOfExpression((AddrOfExpression)expr),
+                ExpressionType.ArrayLiteral => EvalArrayLiteral((ArrayLiteral)expr),
+                ExpressionType.ArrayIndex => EvalArrayIndex((ArrayIndex)expr),
                 _ => throw new NotImplementedException(),
+            };
+        }
+
+        AilurusValue EvalArrayIndex(ArrayIndex indexExpr)
+        {
+            var array = EvalExpression(indexExpr.CallSite).GetAs<ArrayInstance>();
+            var index = EvalExpression(indexExpr.IndexExpression).GetAs<int>();
+
+            if (index > array.Values.Count)
+            {
+                throw new RuntimeError("Array index out of bounds", indexExpr.SourceStart);
+            }
+
+            return array.Values[index];
+        }
+
+        ArrayInstance EvalArrayLiteral(ArrayLiteral array)
+        {
+            var values = new List<AilurusValue>();
+
+            if (array.Elements != null)
+            {
+                foreach (var element in array.Elements)
+                {
+                    values.Add(EvalExpression(element));
+                }
+            }
+
+            if (array.FillExpression != null)
+            {
+                var fillValue = EvalExpression(array.FillExpression);
+                var length = EvalExpression(array.FillLength).GetAs<int>();
+
+                for (var i = 0; i < length; i++)
+                {
+                    values.Add(fillValue);
+                }
+            }
+
+            return new ArrayInstance()
+            {
+                ArrayType = array.DataType as ArrayType,
+                Values = values
             };
         }
 

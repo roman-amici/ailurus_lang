@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using AilurusLang.DataType;
 using AilurusLang.Parsing.AST;
 
@@ -335,5 +336,30 @@ namespace AilurusLang.Interpreter.Runtime
 
         public StructType StructType { get; set; }
         public Dictionary<string, AilurusValue> Members { get; set; }
+    }
+
+    public class ArrayInstance : AilurusValue
+    {
+        public ArrayType ArrayType { get; set; }
+        public List<AilurusValue> Values { get; set; }
+
+        public override string TypeName => $"[{ArrayType.DataTypeName}]";
+
+        public override bool AssertType(AilurusDataType dataType)
+        {
+            if (dataType is ArrayType a)
+            {
+                return a.BaseType == ArrayType.BaseType;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public override string ToString()
+        {
+            return $"[{string.Join(",", Values)}]";
+        }
     }
 }

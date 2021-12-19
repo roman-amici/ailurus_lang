@@ -191,9 +191,79 @@ namespace AilurusLang.Parsing.Parsers
                 return IfExpression();
             }
 
-            Console.WriteLine(Peek);
-            RaiseError(Previous, "Unrecognized token");
+            if (Match(TokenType.LeftBracket))
+            {
+                return ArrayLiteral();
+            }
+
+            RaiseError(Peek, "Unrecognized token");
             return null;
+        }
+
+        ArrayLiteral ArrayLiteral()
+        {
+            var sourceStart = Previous;
+            var elementsOrFillExpression = ArrayElements();
+
+            ArrayLiteral literal;
+
+            if (Match(TokenType.Semicolon))
+            {
+                var firstSemicolon = Previous;
+                var lengthOrFillExpression = Expression();
+
+                // Element literals, and fill initialization is present
+                if (Match(TokenType.Semicolon))
+                {
+                    var length = Expression();
+                    literal = new ArrayLiteral()
+                    {
+                        FillLength = length,
+                        FillExpression = lengthOrFillExpression,
+                        Elements = elementsOrFillExpression,
+                        SourceStart = sourceStart
+                    };
+                }
+                else
+                {
+                    //Fill initialization is present
+                    if (elementsOrFillExpression.Count != 1)
+                    {
+                        RaiseError(firstSemicolon, "Expected a single expression for array fill initialize but found a list of expressions.");
+                    }
+
+                    literal = new ArrayLiteral()
+                    {
+                        FillExpression = elementsOrFillExpression[0],
+                        FillLength = lengthOrFillExpression,
+                        SourceStart = sourceStart
+                    };
+                }
+            }
+            else
+            {
+                // Just element expressions is present
+                literal = new ArrayLiteral()
+                {
+                    Elements = elementsOrFillExpression,
+                    SourceStart = sourceStart
+                };
+            }
+
+            Consume(TokenType.RightBracket, "Expected ']' in array literal.");
+            return literal;
+        }
+
+        List<ExpressionNode> ArrayElements()
+        {
+
+            var elements = new List<ExpressionNode>();
+            do
+            {
+                elements.Add(Expression());
+            } while (Match(TokenType.Comma));
+
+            return elements;
         }
 
         StructInitialization StructInitializer()
@@ -345,6 +415,18 @@ namespace AilurusLang.Parsing.Parsers
                         FieldName = fieldName,
                         SourceStart = dot
                     };
+                }
+                else if (Match(TokenType.LeftBracket))
+                {
+                    var bracket = Previous;
+                    var indexExpression = Expression();
+                    expr = new ArrayIndex()
+                    {
+                        CallSite = expr,
+                        IndexExpression = indexExpression,
+                        SourceStart = bracket
+                    };
+                    Consume(TokenType.RightBracket, "Expected ']' after index expression.");
                 }
                 else
                 {
@@ -683,7 +765,7 @@ namespace AilurusLang.Parsing.Parsers
             }
             Consume(TokenType.RightParen, "Expected ')' after function parameters.");
 
-            TypeName returnType = BaseTypeNames.Void;
+            TypeName returnType = StandardTypeNames.Void;
             if (Match(TokenType.Arrow))
             {
                 returnType = TypeName();
@@ -704,16 +786,36 @@ namespace AilurusLang.Parsing.Parsers
 
         TypeName TypeName()
         {
-            bool isVariable = Match(TokenType.Var);
-            var name = Consume(TokenType.Identifier, "Expected type name after ':'");
-            bool isPtr = Match(TokenType.Ptr);
-
-            return new TypeName()
+            TypeName baseType;
+            if (Match(TokenType.LeftBracket))
             {
-                Name = name,
-                IsPtr = isPtr,
-                IsVariable = isVariable
-            };
+                var innerTypeName = TypeName();
+                Consume(TokenType.RightBracket, "Expected ']' in type name.");
+
+                baseType = new ArrayTypeName()
+                {
+                    BaseTypeName = innerTypeName
+                };
+            }
+            else
+            {
+                baseType = new BaseTypeName()
+                {
+                    Name = Consume(TokenType.Identifier, "Expected type name")
+                };
+            }
+
+            while (Match(TokenType.VarPtr, TokenType.Ptr))
+            {
+                var isVariable = Previous.Type == TokenType.VarPtr;
+                baseType = new PointerTypeName()
+                {
+                    IsVariable = isVariable,
+                    BaseTypeName = baseType
+                };
+            }
+
+            return baseType;
         }
 
         #endregion
@@ -1034,10 +1136,11 @@ namespace AilurusLang.Parsing.Parsers
             else
             {
                 var value = int.Parse(token.Identifier);
+                var dataType = value >= 0 ? IntType.InstanceUnsigned : IntType.InstanceSigned;
                 return new Literal()
                 {
                     Value = value,
-                    DataType = IntType.InstanceSigned,
+                    DataType = dataType,
                     SourceStart = token
                 };
             }

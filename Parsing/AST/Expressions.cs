@@ -19,7 +19,9 @@ namespace AilurusLang.Parsing.AST
         Get,
         Set,
         StructInitialization,
-        AddrOfExpression
+        AddrOfExpression,
+        ArrayLiteral,
+        ArrayIndex
     }
 
     public abstract class ExpressionNode : ASTNode
@@ -139,5 +141,22 @@ namespace AilurusLang.Parsing.AST
 
         public ExpressionNode OperateOn { get; set; }
         public bool VarAddr { get; set; }
+    }
+
+    public class ArrayLiteral : ExpressionNode
+    {
+        public ArrayLiteral() : base(ExpressionType.ArrayLiteral) { }
+
+        public List<ExpressionNode> Elements { get; set; }
+        public ExpressionNode FillExpression { get; set; }
+        public ExpressionNode FillLength { get; set; }
+    }
+
+    public class ArrayIndex : ExpressionNode
+    {
+        public ArrayIndex() : base(ExpressionType.ArrayIndex) { }
+
+        public ExpressionNode CallSite { get; set; }
+        public ExpressionNode IndexExpression { get; set; }
     }
 }

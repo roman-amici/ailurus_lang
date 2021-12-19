@@ -39,6 +39,7 @@ namespace AilurusLang.Scanning
         Carrot, // ^
         CarrotCarrot, // ^^
         Slash, // /
+        Array, // []
 
         //Literals
         Identifier, // Alphanumeric, not starting with a number. Includes _
@@ -79,7 +80,7 @@ namespace AilurusLang.Scanning
         Static, // 
         Volatile,
         Mut,
-        Var,
+        VarPtr,
         Ptr,
 
         // Modules

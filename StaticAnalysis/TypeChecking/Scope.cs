@@ -12,16 +12,16 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         {
             TypeDeclarations = new Dictionary<string, BaseTypeDeclaration>
             {
-                { "bool", new BaseTypeDeclaration() { TypeName = BaseTypeNames.Bool, DataType = BooleanType.Instance } },
-                { "byte", new BaseTypeDeclaration() { TypeName = BaseTypeNames.Int, DataType = ByteType.InstanceSigned } },
-                { "ubyte", new BaseTypeDeclaration() { TypeName = BaseTypeNames.UByte, DataType = ByteType.InstanceUnsigned } },
-                { "short", new BaseTypeDeclaration() { TypeName = BaseTypeNames.Short, DataType = ShortType.InstanceSigned } },
-                { "ushort", new BaseTypeDeclaration() { TypeName = BaseTypeNames.Ushort, DataType = ShortType.InstanceUnsigned } },
-                { "int", new BaseTypeDeclaration() { TypeName = BaseTypeNames.Int, DataType = IntType.InstanceSigned } },
-                { "uint", new BaseTypeDeclaration() { TypeName = BaseTypeNames.Uint, DataType = IntType.InstanceUnsigned } },
-                { "float", new BaseTypeDeclaration() { TypeName = BaseTypeNames.Float, DataType = FloatType.Instance } },
-                { "double", new BaseTypeDeclaration() { TypeName = BaseTypeNames.Double, DataType = DoubleType.Instance } },
-                { "void", new BaseTypeDeclaration() {TypeName = BaseTypeNames.Void, DataType = VoidType.Instance}},
+                { "bool", new BaseTypeDeclaration() { TypeName = StandardTypeNames.Bool, DataType = BooleanType.Instance } },
+                { "byte", new BaseTypeDeclaration() { TypeName = StandardTypeNames.Int, DataType = ByteType.InstanceSigned } },
+                { "ubyte", new BaseTypeDeclaration() { TypeName = StandardTypeNames.UByte, DataType = ByteType.InstanceUnsigned } },
+                { "short", new BaseTypeDeclaration() { TypeName = StandardTypeNames.Short, DataType = ShortType.InstanceSigned } },
+                { "ushort", new BaseTypeDeclaration() { TypeName = StandardTypeNames.Ushort, DataType = ShortType.InstanceUnsigned } },
+                { "int", new BaseTypeDeclaration() { TypeName = StandardTypeNames.Int, DataType = IntType.InstanceSigned } },
+                { "uint", new BaseTypeDeclaration() { TypeName = StandardTypeNames.Uint, DataType = IntType.InstanceUnsigned } },
+                { "float", new BaseTypeDeclaration() { TypeName = StandardTypeNames.Float, DataType = FloatType.Instance } },
+                { "double", new BaseTypeDeclaration() { TypeName = StandardTypeNames.Double, DataType = DoubleType.Instance } },
+                { "void", new BaseTypeDeclaration() {TypeName = StandardTypeNames.Void, DataType = VoidType.Instance}},
             };
         }
     }

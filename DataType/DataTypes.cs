@@ -122,6 +122,12 @@ namespace AilurusLang.DataType
         public override string DataTypeName => $"{BaseType.DataTypeName} ptr";
     }
 
+    public class ArrayType : AilurusDataType
+    {
+        public AilurusDataType BaseType { get; set; }
+        public override string DataTypeName => $"[{BaseType.DataTypeName}]";
+    }
+
     public class NullType : AilurusDataType
     {
         public static readonly NullType Instance = new NullType();

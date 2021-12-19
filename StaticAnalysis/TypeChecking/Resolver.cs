@@ -20,6 +20,9 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         public bool WasInLoopBody { get; set; }
         public bool IsInLoopBody { get; set; }
 
+        public bool IsInNewExpression { get; set; }
+        public bool WasInNewExpression { get; set; }
+
         public bool IsInFunctionDefinition { get; set; }
         public AilurusDataType CurrentFunctionReturnType { get; set; }
 
@@ -33,6 +36,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             IsInLoopBody = false;
             WasInLoopBody = false;
             IsInFunctionDefinition = false;
+            IsInNewExpression = false;
+            WasInNewExpression = false;
         }
 
         void Error(string message, Token token)
@@ -108,6 +113,16 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             EndScope();
             IsInFunctionDefinition = false;
             CurrentFunctionReturnType = null;
+        }
+
+        void EnterNewStatement()
+        {
+            IsInNewExpression = true;
+        }
+
+        void ExitNewStatement()
+        {
+            IsInNewExpression = false;
         }
 
         #endregion
@@ -260,41 +275,67 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         AilurusDataType ResolveTypeName(Token name)
         {
-            return ResolveTypeName(new TypeName()
+            return ResolveTypeName(new BaseTypeName()
             {
                 Name = name,
-                IsPtr = false
             });
         }
 
         AilurusDataType ResolveTypeName(TypeName typeName)
         {
-            var type = LookupTypeByName(typeName.Name.Lexeme);
-            if (type == null)
+            if (typeName is PointerTypeName p)
             {
-                return ErrorType.Instance;
-            }
-
-            if (type is PlaceholderType placeholder)
-            {
-                type = placeholder.ResolvedType;
-            }
-
-            if (typeName.IsPtr)
-            {
-                return new PointerType()
+                var baseType = ResolveTypeName(p.BaseTypeName);
+                if (baseType is ErrorType)
                 {
-                    BaseType = type,
-                    IsVariable = typeName.IsVariable
-                };
+                    return baseType;
+                }
+                else
+                {
+                    return new PointerType()
+                    {
+                        BaseType = baseType,
+                        IsVariable = p.IsVariable
+                    };
+                }
+            }
+            else if (typeName is ArrayTypeName a)
+            {
+                var baseType = ResolveTypeName(a.BaseTypeName);
+                if (baseType is ErrorType)
+                {
+                    return baseType;
+                }
+                else
+                {
+                    return new ArrayType()
+                    {
+                        BaseType = baseType
+                    };
+                }
+            }
+            else if (typeName is BaseTypeName b)
+            {
+                var type = LookupTypeByName(b.Name.Lexeme);
+                if (type == null)
+                {
+                    return ErrorType.Instance;
+                }
+
+                if (type is PlaceholderType placeholder)
+                {
+                    type = placeholder.ResolvedType;
+                }
+
+                return type;
             }
             else
             {
-                return type;
+                return ErrorType.Instance; //Unreachable
             }
         }
 
-        AilurusDataType GetBaseType(AilurusDataType t, out int ptrCount, out bool isVariable)
+        AilurusDataType UnwrapPtrTypes(AilurusDataType t, out int ptrCount, out bool isVariable)
         {
             isVariable = false;
             ptrCount = 0;
@@ -318,8 +359,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         bool TypesAreEqual(AilurusDataType t1, AilurusDataType t2)
         {
-            var t1BaseType = GetBaseType(t1, out int t1PtrCount, out bool t1Variable);
-            var t2BaseType = GetBaseType(t2, out int t2PtrCount, out bool t2Variable);
+            var t1BaseType = UnwrapPtrTypes(t1, out int t1PtrCount, out bool t1Variable);
+            var t2BaseType = UnwrapPtrTypes(t2, out int t2PtrCount, out bool t2Variable);
 
             if (t1PtrCount != t2PtrCount)
             {
@@ -353,6 +394,10 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
                 return true;
             }
+            else if (t1BaseType is ArrayType a1 && t2BaseType is ArrayType a2)
+            {
+                return TypesAreEqual(a1.BaseType, a2.BaseType);
+            }
 
             return t1BaseType.GetType() == t2BaseType.GetType();
         }
@@ -384,8 +429,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 return true;
             }
 
-            var lhsBaseType = GetBaseType(assertedType, out int lhsPtrCount, out bool _);
-            var rhsBaseType = GetBaseType(rhsType, out int rhsPtrCount, out bool rhsIsVariable);
+            var lhsBaseType = UnwrapPtrTypes(assertedType, out int lhsPtrCount, out bool _);
+            var rhsBaseType = UnwrapPtrTypes(rhsType, out int rhsPtrCount, out bool rhsIsVariable);
 
             var genericError = $"Cannot assign value of type {rhsType.DataTypeName} to value of type {assertedType.DataTypeName}.";
             if (lhsPtrCount == 0 && rhsPtrCount == 0)
@@ -394,11 +439,6 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     AilurusDataType.IsNumeric(rhsBaseType))
                 {
                     return true;
-                }
-                else
-                {
-                    errorMessage = genericError;
-                    return false;
                 }
             }
             else if (lhsPtrCount > 0)
@@ -415,6 +455,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 return lhsPtrCount == rhsPtrCount && TypesAreEqual(lhsBaseType, rhsBaseType);
             }
 
+            // Fall through and compare the inner types
             var result = TypesAreEqual(assertedType, rhsType);
             if (!result)
             {
@@ -542,6 +583,37 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
         }
 
+        bool IsIntegerType(AilurusDataType type)
+        {
+            if (type is AliasType a)
+            {
+                return IsIntegerType(a.BaseType);
+            }
+            else
+            {
+                return type is IntegralType;
+            }
+        }
+
+        bool IsIndexType(AilurusDataType type)
+        {
+            if (type is AliasType a)
+            {
+                return IsIndexType(a.BaseType);
+            }
+            else
+            {
+                if (type is IntegralType i)
+                {
+                    return i.Unsigned;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+
         #endregion
 
         #region Resolve Expression
@@ -572,9 +644,89 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     return ResolveStructInitialization((StructInitialization)expr);
                 case ExpressionType.AddrOfExpression:
                     return ResolveAddrOfExpression((AddrOfExpression)expr);
+                case ExpressionType.ArrayLiteral:
+                    return ResolveArrayLiteral((ArrayLiteral)expr);
+                case ExpressionType.ArrayIndex:
+                    return ResolveArrayIndex((ArrayIndex)expr);
                 default:
                     throw new NotImplementedException();
             }
+        }
+
+        AilurusDataType ResolveArrayIndex(ArrayIndex index)
+        {
+            var callsiteType = ResolveExpression(index.CallSite);
+
+            AilurusDataType expressionType = ErrorType.Instance;
+            if (!(callsiteType is ArrayType))
+            {
+                Error($"Expected array type for index but instead found type '{callsiteType.DataTypeName}'.", index.CallSite.SourceStart);
+            }
+            else
+            {
+                expressionType = callsiteType;
+            }
+
+            var indexType = ResolveExpression(index.IndexExpression);
+
+            if (!IsIndexType(indexType))
+            {
+                Error($"Expected array index to have integral type but instead found type '{indexType.DataTypeName}'.", index.SourceStart);
+            }
+
+            index.DataType = expressionType;
+            return expressionType;
+        }
+
+        AilurusDataType ResolveArrayLiteral(ArrayLiteral array)
+        {
+            AilurusDataType baseType = null;
+            if (array.Elements != null)
+            {
+                foreach (var element in array.Elements)
+                {
+                    var elementType = ResolveExpression(element);
+
+                    baseType ??= elementType;
+                    if (!TypesAreEqual(baseType, elementType))
+                    {
+                        Error("All elements of array literal must be of the same type.", element.SourceStart);
+                        baseType = ErrorType.Instance;
+                        break;
+                    }
+                }
+            }
+
+            if (array.FillExpression != null)
+            {
+                var fillType = ResolveExpression(array.FillExpression);
+                baseType ??= fillType;
+                if (!TypesAreEqual(baseType, fillType))
+                {
+                    Error("All elements of array literal must be of the same type.", array.FillExpression.SourceStart);
+                    baseType = ErrorType.Instance;
+                }
+            }
+
+            if (array.FillLength != null)
+            {
+                var fillLengthType = ResolveExpression(array.FillLength);
+                if (!IsIndexType(fillLengthType))
+                {
+                    Error($"Array fill length must be a positive integer but was instead of type {fillLengthType.DataTypeName}", array.FillLength.SourceStart);
+                }
+                if (!IsInNewExpression && !IsStaticExpression(array.FillLength))
+                {
+                    Error($"Array literals outside of a 'new' expression must be have a static size", array.FillLength.SourceStart);
+                }
+            }
+
+            var arrayType = new ArrayType()
+            {
+                BaseType = baseType
+            };
+            array.DataType = arrayType;
+            return arrayType;
         }
 
         AilurusDataType ResolveAddrOfExpression(AddrOfExpression expr)
@@ -640,7 +792,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             innerStruct = null;
             var callSiteType = ResolveExpression(expr.CallSite);
 
-            var baseType = GetBaseType(callSiteType, out int _, out bool _);
+            var baseType = UnwrapPtrTypes(callSiteType, out int _, out bool _);
 
             if (baseType is StructType structType)
             {
