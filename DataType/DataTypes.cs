@@ -77,9 +77,12 @@ namespace AilurusLang.DataType
         public override string DataTypeName => "double";
     }
 
-    public class StringType : AilurusDataType
+    public class StringType : AilurusDataType, IArrayLikeType
     {
+        public AilurusDataType ElementType => CharType.Instance;
+
         public readonly static StringType Instance = new StringType();
+
         public override string DataTypeName => "string";
     }
 
@@ -128,8 +131,16 @@ namespace AilurusLang.DataType
         public override string DataTypeName => $"{BaseType.DataTypeName} ptr";
     }
 
-    public class ArrayType : AilurusDataType
+    public interface IArrayLikeType
     {
+        AilurusDataType ElementType { get; }
+    }
+
+    public class ArrayType : AilurusDataType, IArrayLikeType
+    {
+
+        public AilurusDataType ElementType => BaseType;
+
         public AilurusDataType BaseType { get; set; }
         public override string DataTypeName => $"[{BaseType.DataTypeName}]";
     }

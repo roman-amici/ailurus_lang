@@ -1106,6 +1106,14 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                         UnaryError(unary, unary.DataType);
                     }
                     break;
+                case TokenType.LenOf:
+                    // TODO: replace with usize
+                    unary.DataType = IntType.InstanceUnsigned;
+                    if (!(inner is IArrayLikeType))
+                    {
+                        Error($"Expected type 'array' or 'string' for operator 'lenOf' but found type '{inner.DataTypeName}'.", unary.Expr.SourceStart);
+                    }
+                    break;
                 default:
                     throw new NotImplementedException();
             }
@@ -1306,6 +1314,52 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
         }
 
+        void ResolveForEachStatement(ForEachStatement forEach)
+        {
+            BeginScope();
+
+            if (!CanDeclareName(forEach.Name.Identifier))
+            {
+                Error($"Variable with name '{forEach.Name.Lexeme}' already exists in this scope.", forEach.Name);
+            }
+
+            var iteratorType = ResolveExpression(forEach.IteratedValue);
+
+            AilurusDataType elementType = ErrorType.Instance;
+            if (iteratorType is IArrayLikeType a)
+            {
+                elementType = a.ElementType;
+            }
+            else
+            {
+                Error($"Expected type 'array' or type 'string' as iterator in foreach loop but instead found type '{iteratorType.DataTypeName}'.", forEach.IteratedValue.SourceStart);
+            }
+
+            AilurusDataType assertedType = elementType;
+            if (forEach.AssertedTypeName != null)
+            {
+                assertedType = ResolveTypeName(forEach.AssertedTypeName);
+            }
+
+            // TODO: Allow for reference to elements
+            if (!CanAssignTo(assertedType, elementType, false, out string errorMessage))
+            {
+                Error(errorMessage, forEach.Name);
+            }
+
+            var declaration = AddVariableToCurrentScope(
+                forEach.Name,
+                assertedType,
+                forEach.IsMutable,
+                true);
+
+            forEach.Resolution = declaration;
+
+            ResolveStatement(forEach.Body);
+
+            EndScope();
+        }
+
         void ResolveStatement(StatementNode statement)
         {
             switch (statement.StmtType)
@@ -1340,6 +1394,9 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     break;
                 case StatementType.Free:
                     ResolveFreeStatement((FreeStatement)statement);
+                    break;
+                case StatementType.ForEach:
+                    ResolveForEachStatement((ForEachStatement)statement);
                     break;
                 default:
                     throw new NotImplementedException();

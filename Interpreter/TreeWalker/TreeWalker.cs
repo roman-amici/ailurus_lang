@@ -51,6 +51,18 @@ namespace AilurusLang.Interpreter.TreeWalker
             CallStack.RemoveAt(CallStack.Count - 1);
         }
 
+        TreeWalkerEnvironment GetEnvironmentForVariableResolution(VariableResolution resolution)
+        {
+            if (resolution.ScopeDepth == null)
+            {
+                return ModuleEnvironment;
+            }
+            else
+            {
+                return CallStack[^1][(int)resolution.ScopeDepth];
+            }
+        }
+
         #endregion
 
         #region Module
@@ -146,10 +158,30 @@ namespace AilurusLang.Interpreter.TreeWalker
                 case ReturnStatement returnStatement:
                     EvalReturnStatement(returnStatement);
                     break;
+                case ForEachStatement forEachStatement:
+                    EvalForEachStatement(forEachStatement);
+                    break;
                 default:
                     throw new NotImplementedException();
 
             }
+        }
+
+        void EvalForEachStatement(ForEachStatement forEach)
+        {
+            var iteratedValue = EvalExpression(forEach.IteratedValue).GetAs<IArrayInstanceLike>();
+
+            PushBlockEnvironment();
+
+            var env = GetEnvironmentForVariableResolution(forEach.Resolution);
+
+            for (var i = 0; i < iteratedValue.Count; i++)
+            {
+                env.SetValue(forEach.Resolution, iteratedValue[i]);
+                EvalBlockStatement(forEach.Body);
+            }
+
+            PopBlockEnvironment();
         }
 
         void EvalReturnStatement(ReturnStatement returnStatement)
@@ -161,12 +193,12 @@ namespace AilurusLang.Interpreter.TreeWalker
             };
         }
 
-        void EvalContinueStatement(ContinueStatement _continueStatement)
+        void EvalContinueStatement(ContinueStatement _)
         {
             throw new ControlFlowException(ControlFlowType.Continue);
         }
 
-        void EvalBreakStatement(BreakStatement _breakStatement)
+        void EvalBreakStatement(BreakStatement _)
         {
             throw new ControlFlowException(ControlFlowType.Break);
         }
@@ -280,15 +312,7 @@ namespace AilurusLang.Interpreter.TreeWalker
                 initializer = EvalExpression(stmt.Initializer);
             }
 
-            TreeWalkerEnvironment env;
-            if (stmt.Resolution.ScopeDepth == null)
-            {
-                env = ModuleEnvironment;
-            }
-            else
-            {
-                env = CallStack[^1][(int)stmt.Resolution.ScopeDepth];
-            }
+            var env = GetEnvironmentForVariableResolution(stmt.Resolution);
             env.SetValue(stmt.Resolution, initializer);
 
         }
@@ -502,12 +526,19 @@ namespace AilurusLang.Interpreter.TreeWalker
             {
                 TokenType.Bang => Evaluator.EvalUnaryBang(value, unary),
                 TokenType.Minus => Evaluator.EvalUnaryMinus(value, unary),
-                TokenType.At => EvalUnaryDereference(value, unary),
+                TokenType.At => EvalUnaryDereference(value),
+                TokenType.LenOf => EvalLenOf(value),
                 _ => throw new NotImplementedException(),
             };
         }
 
-        AilurusValue EvalUnaryDereference(AilurusValue value, Unary unary)
+        AilurusValue EvalLenOf(AilurusValue value)
+        {
+            var count = value.GetAs<IArrayInstanceLike>().Count;
+            return new DynamicValue() { Value = count };
+        }
+
+        AilurusValue EvalUnaryDereference(AilurusValue value)
         {
             var pointer = value.GetAs<Pointer>();
             return pointer.Deref();
@@ -599,14 +630,7 @@ namespace AilurusLang.Interpreter.TreeWalker
                     // TODO: Reject statically
                     throw new RuntimeError("Referenced an uninitialized variable", Name);
                 }
-                if (v.ScopeDepth is null)
-                {
-                    return ModuleEnvironment;
-                }
-                else
-                {
-                    return CallStack[^1][(int)v.ScopeDepth];
-                }
+                return GetEnvironmentForVariableResolution(v);
             }
             else if (resolution is FunctionResolution f)
             {

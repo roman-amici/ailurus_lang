@@ -9,15 +9,17 @@
    ~~-- Add struct field reference syntax and semantics~~
  5. ~~Add Type alias Declarations~~
  6. Add Module resolution
- 7. ~~Pointer semantics (without arithmatic)~~.
+ 7. ~~Pointer semantics (without arithmetic)~~.
  8. ~~Mutability semantics for pointers.~~
  9. ~~Array syntax and semantics.~~
- 10. Array element assignment.
+ 10. ~~Array element assignment.~~
  11. Mutability semantics + syntax for arrays.
- 12. String and char types
+ 12. ~~String and char types~~
  13. Foreach loop on arrays and strings.
  14. Heap allocation (new, free)
  15. Variants
+ 16. Address of array elements
+  - Address of array elements in foreach loop
 
 ## Standard Library
  1. Build minimal C-like standard library

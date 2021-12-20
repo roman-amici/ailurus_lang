@@ -35,6 +35,11 @@ namespace AilurusLang.Parsing.Parsers
             throw new ParsingError(token, errorMessage);
         }
 
+        void Warning(string warningMessage, Token t)
+        {
+            Console.WriteLine($"{t.SourceFile}:{t.Line}:{t.Column} - Warning: {warningMessage}");
+        }
+
         // Token Stream querying
         bool Check(TokenType type)
         {
@@ -351,7 +356,7 @@ namespace AilurusLang.Parsing.Parsers
                     {
                         OperateOn = expr,
                         SourceStart = op,
-                        VarAddr = (op.Type == TokenType.VarAddrOf)
+                        VarAddr = op.Type == TokenType.VarAddrOf
                     };
                 }
             }
@@ -369,7 +374,8 @@ namespace AilurusLang.Parsing.Parsers
             }
             if (Match(
                 TokenType.Bang,
-                TokenType.Minus
+                TokenType.Minus,
+                TokenType.LenOf
             ))
             {
                 var op = Previous;
@@ -885,8 +891,60 @@ namespace AilurusLang.Parsing.Parsers
             {
                 return FreeStatement();
             }
+            else if (Match(TokenType.ForEach))
+            {
+                return ForEachStatement();
+            }
 
             return ExpressionStatement();
+        }
+
+        ForEachStatement ForEachStatement()
+        {
+            var forEachToken = Previous;
+
+            var optionalParens = Match(TokenType.LeftParen);
+
+            Consume(TokenType.Let, "Expected 'let' after 'foreach'.");
+
+            // TODO: Extract to share with let statement?
+            bool isMutable = false;
+            if (Match(TokenType.Mut))
+            {
+                isMutable = true;
+            }
+
+            var name = Consume(TokenType.Identifier, "Expected name after 'let'");
+
+            TypeName assertedType = null;
+            if (Match(TokenType.Colon))
+            {
+                assertedType = TypeName();
+            }
+
+            Consume(TokenType.In, "Expected 'in' in foreach statement.");
+
+            var iteratedValue = Expression();
+
+            if (optionalParens)
+            {
+                Consume(TokenType.RightParen, "Mismatched parens.");
+                Warning("Unnecessary parenthesis.", Previous);
+            }
+
+            Consume(TokenType.LeftBrace, "Expected '{' after declaration in foreach loop.");
+
+            var body = BlockStatement();
+
+            return new ForEachStatement()
+            {
+                Name = name,
+                AssertedTypeName = assertedType,
+                IteratedValue = iteratedValue,
+                Body = body,
+                IsMutable = isMutable,
+                SourceStart = forEachToken
+            };
         }
 
         ExpressionStatement ExpressionStatement()
@@ -984,6 +1042,7 @@ namespace AilurusLang.Parsing.Parsers
         StatementNode IfStatement()
         {
             var ifStart = Previous;
+
             var predicate = Expression();
 
             if (Match(TokenType.LeftBrace))
@@ -1056,12 +1115,21 @@ namespace AilurusLang.Parsing.Parsers
         {
             var forStart = Previous;
 
+            var optionalParens = Match(TokenType.LeftParen);
+
             var initializer = ForLoopInitializer();
 
             var predicate = Expression();
             Consume(TokenType.Semicolon, "Expected ';' after predicate expression in for loop.");
 
             var update = Expression();
+
+            if (optionalParens)
+            {
+                Consume(TokenType.RightParen, "Unmatched parens.");
+                Warning("Unnecessary parens in 'if' statement.", Previous);
+            }
+
             Consume(TokenType.LeftBrace, "Expected '{' after update expression in for loop.");
 
             var body = BlockStatement();

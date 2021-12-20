@@ -17,6 +17,7 @@ namespace AilurusLang.Parsing.AST
         Continue,
         Return,
         Free,
+        ForEach,
         // Temp
         Print
     }
@@ -113,6 +114,19 @@ namespace AilurusLang.Parsing.AST
     {
         public FreeStatement() : base(StatementType.Free) { }
         public ExpressionNode Expr { get; set; }
+    }
+
+    public class ForEachStatement : StatementNode
+    {
+        public ForEachStatement() : base(StatementType.ForEach) { }
+
+        public Token Name { get; set; }
+        public TypeName? AssertedTypeName { get; set; }
+        public ExpressionNode IteratedValue { get; set; }
+        public BlockStatement Body { get; set; }
+        public bool IsMutable { get; set; }
+
+        public VariableResolution Resolution { get; set; }
     }
 
 }

@@ -64,6 +64,8 @@ namespace AilurusLang.Scanning
         Continue,
         Return,
         Then,
+        ForEach,
+        In,
 
         // Values
         Null,
@@ -91,7 +93,7 @@ namespace AilurusLang.Scanning
         From,
 
         // Array Operators
-        LengthOf,
+        LenOf,
 
         // Memory Operators
         SizeOf,

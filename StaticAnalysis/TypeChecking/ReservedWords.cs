@@ -53,6 +53,9 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             Add("addrOf");
             Add("varAddrOf");
 
+            // Array
+            Add("lenOf");
+
             //Temp
             Add("print");
 

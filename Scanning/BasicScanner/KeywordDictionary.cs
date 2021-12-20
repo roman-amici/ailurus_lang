@@ -21,6 +21,8 @@ namespace AilurusLang.Scanning.BasicScanner
             Add("break", TokenType.Break);
             Add("continue", TokenType.Continue);
             Add("return", TokenType.Return);
+            Add("foreach", TokenType.ForEach);
+            Add("in", TokenType.In);
 
             // Values
             Add("null", TokenType.Null);
@@ -48,7 +50,7 @@ namespace AilurusLang.Scanning.BasicScanner
             Add("from", TokenType.From);
 
             // Array Operators
-            Add("lengthOf", TokenType.LengthOf);
+            Add("lenOf", TokenType.LenOf);
 
             // Memory Operators
             Add("sizeOf", TokenType.SizeOf);
