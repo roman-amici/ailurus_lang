@@ -1,6 +1,6 @@
 # Tree Walker Interpreter
 
-## Finish Functions
+## Finish Tree Walker
  1. ~~Finish Function Declaration Evaluation~~
  2. ~~Add Call Semantics~~
     - ~~Add return semantics~~
@@ -9,10 +9,19 @@
    ~~-- Add struct field reference syntax and semantics~~
  5. ~~Add Type alias Declarations~~
  6. Add Module resolution
- 7. Pointer semantics (without).
- 8. Mutability semantics.
- 9. Array syntax and semantics.
- 9. Add Integration tests for what I have so that VM can be regression tested.
+ 7. ~~Pointer semantics (without arithmatic)~~.
+ 8. ~~Mutability semantics for pointers.~~
+ 9. ~~Array syntax and semantics.~~
+ 10. Array element assignment.
+ 11. Mutability semantics + syntax for arrays.
+ 12. String and char types
+ 13. Foreach loop on arrays and strings.
+ 14. Heap allocation (new, free)
+ 15. Variants
+
+## Standard Library
+ 1. Build minimal C-like standard library
+ 2. Add Integration tests for what I have so that VM can be regression tested.
 
 ## VM
  1. Setup memory regions and stack machine
@@ -27,7 +36,6 @@
 
 ## New Features
  1. Basic generics
- 2. Variants
 
 ## Infrastructure
  1. VSCode Syntax highlighting

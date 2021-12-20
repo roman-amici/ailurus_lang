@@ -22,6 +22,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 { "float", new BaseTypeDeclaration() { TypeName = StandardTypeNames.Float, DataType = FloatType.Instance } },
                 { "double", new BaseTypeDeclaration() { TypeName = StandardTypeNames.Double, DataType = DoubleType.Instance } },
                 { "void", new BaseTypeDeclaration() {TypeName = StandardTypeNames.Void, DataType = VoidType.Instance}},
+                { "string", new BaseTypeDeclaration() {TypeName = StandardTypeNames.StringName, DataType = StringType.Instance}},
+                { "char", new BaseTypeDeclaration() {TypeName = StandardTypeNames.Char, DataType= CharType.Instance}},
             };
         }
     }

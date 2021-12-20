@@ -47,7 +47,10 @@ namespace AilurusLang.Scanning.BasicScanner
             Add("import", TokenType.Import);
             Add("from", TokenType.From);
 
-            // Misc
+            // Array Operators
+            Add("lengthOf", TokenType.LengthOf);
+
+            // Memory Operators
             Add("sizeOf", TokenType.SizeOf);
             Add("addrOf", TokenType.AddrOf);
             Add("varAddrOf", TokenType.VarAddrOf);

@@ -28,6 +28,8 @@ namespace AilurusLang.Parsing.AST
         public static readonly TypeName Uint = new BaseTypeName() { Name = Token.StaticIdentifier("uint") };
         public static readonly TypeName Float = new BaseTypeName() { Name = Token.StaticIdentifier("float") };
         public static readonly TypeName Double = new BaseTypeName() { Name = Token.StaticIdentifier("double") };
+        public static readonly TypeName StringName = new BaseTypeName() { Name = Token.StaticIdentifier("string") };
+        public static readonly TypeName Char = new BaseTypeName() { Name = Token.StaticIdentifier("char") };
     }
 
     public abstract class TypeName

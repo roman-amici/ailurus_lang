@@ -110,8 +110,8 @@ namespace AilurusLang.Interpreter.Runtime
                 case BooleanType _:
                     return Value is bool;
 
-                case StringType _:
-                    return Value is string;
+                case CharType _:
+                    return Value is char;
 
                 default:
                     throw new NotImplementedException();
@@ -338,8 +338,54 @@ namespace AilurusLang.Interpreter.Runtime
         public Dictionary<string, AilurusValue> Members { get; set; }
     }
 
-    public class ArrayInstance : AilurusValue
+    public interface IArrayInstanceLike
     {
+        int Count { get; }
+
+        AilurusValue this[int i] { get; set; }
+    }
+
+    public class StringInstance : AilurusValue, IArrayInstanceLike
+    {
+        public override string TypeName => "string";
+
+        // Maybe just store it as a char array?
+        public string Value { get; set; }
+
+        public override bool AssertType(AilurusDataType dataType)
+        {
+            return dataType is StringType;
+        }
+
+        public AilurusValue this[int i]
+        {
+            get => new DynamicValue() { Value = Value[i] };
+            set
+            {
+                var newString = Value.ToCharArray();
+                newString[i] = value.GetAs<char>();
+                Value = new string(newString);
+            }
+        }
+
+        public int Count => Value.Length;
+
+        public override string ToString()
+        {
+            return Value;
+        }
+    }
+
+    public class ArrayInstance : AilurusValue, IArrayInstanceLike
+    {
+        public int Count => Values.Count;
+
+        public AilurusValue this[int i]
+        {
+            get => Values[i];
+            set => Values[i] = value;
+        }
+
         public ArrayType ArrayType { get; set; }
         public List<AilurusValue> Values { get; set; }
 

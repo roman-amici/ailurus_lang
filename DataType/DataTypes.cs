@@ -83,6 +83,12 @@ namespace AilurusLang.DataType
         public override string DataTypeName => "string";
     }
 
+    public class CharType : AilurusDataType
+    {
+        public readonly static CharType Instance = new CharType();
+        public override string DataTypeName => "char";
+    }
+
     public class StructType : AilurusDataType
     {
         public string StructName { get; set; }

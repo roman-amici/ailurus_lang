@@ -44,6 +44,7 @@ namespace AilurusLang.Scanning
         //Literals
         Identifier, // Alphanumeric, not starting with a number. Includes _
         StringConstant,
+        CharConstant,
         Number,
 
         // -- Keywords --
@@ -88,6 +89,9 @@ namespace AilurusLang.Scanning
         Export,
         Import,
         From,
+
+        // Array Operators
+        LengthOf,
 
         // Memory Operators
         SizeOf,

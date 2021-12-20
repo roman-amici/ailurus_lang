@@ -628,8 +628,8 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
                 case IntType _:
                 case FloatType _:
                 case DoubleType _:
-                case StringType _:
                 case NullType _:
+                case CharType _:
                     return new DynamicValue() { Value = Value };
                 case StructType structType:
                     return new StructInstance()
@@ -639,6 +639,8 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
                     };
                 case AliasType alias:
                     return ValueFromDatatype(Value, alias.BaseType);
+                case StringType _:
+                    return new StringInstance() { Value = (string)Value };
                 default:
                     throw new NotImplementedException();
             }

@@ -125,6 +125,21 @@ namespace AilurusLang.Parsing.Parsers
             {
                 return DetermineNumberLiteral(Previous);
             }
+            if (Match(TokenType.CharConstant))
+            {
+                var charValue = Previous;
+                if (!char.TryParse(charValue.Identifier, out char result))
+                {
+                    RaiseError(charValue, $"Unrecognized char literal '{charValue.Identifier}'.");
+                }
+
+                return new Literal()
+                {
+                    Value = result,
+                    DataType = CharType.Instance,
+                    SourceStart = Previous
+                };
+            }
             if (Match(TokenType.StringConstant))
             {
                 return new Literal()
@@ -625,6 +640,16 @@ namespace AilurusLang.Parsing.Parsers
                     {
                         FieldName = g.FieldName,
                         CallSite = g.CallSite,
+                        Value = rvalue,
+                        SourceStart = assignmentToken,
+                        PointerAssign = pointerAssignment
+                    };
+                }
+                else if (expr is ArrayIndex a)
+                {
+                    return new ArraySetExpression()
+                    {
+                        ArrayIndex = a,
                         Value = rvalue,
                         SourceStart = assignmentToken,
                         PointerAssign = pointerAssignment

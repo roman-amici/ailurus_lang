@@ -325,21 +325,38 @@ namespace AilurusLang.Interpreter.TreeWalker
                 ExpressionType.AddrOfExpression => EvalAddrOfExpression((AddrOfExpression)expr),
                 ExpressionType.ArrayLiteral => EvalArrayLiteral((ArrayLiteral)expr),
                 ExpressionType.ArrayIndex => EvalArrayIndex((ArrayIndex)expr),
+                ExpressionType.ArraySetExpression => EvalArraySet((ArraySetExpression)expr),
                 _ => throw new NotImplementedException(),
             };
         }
 
+        AilurusValue EvalArraySet(ArraySetExpression expr)
+        {
+            var value = EvalExpression(expr.Value);
+            var array = EvalExpression(expr.ArrayIndex.CallSite).GetAs<IArrayInstanceLike>();
+            var index = EvalExpression(expr.ArrayIndex.IndexExpression).GetAs<int>();
+
+            if (index >= array.Count)
+            {
+                throw new RuntimeError("Array index out of bounds", expr.SourceStart);
+            }
+
+            array[index] = value;
+
+            return value;
+        }
+
         AilurusValue EvalArrayIndex(ArrayIndex indexExpr)
         {
-            var array = EvalExpression(indexExpr.CallSite).GetAs<ArrayInstance>();
+            var array = EvalExpression(indexExpr.CallSite).GetAs<IArrayInstanceLike>();
             var index = EvalExpression(indexExpr.IndexExpression).GetAs<int>();
 
-            if (index > array.Values.Count)
+            if (index >= array.Count)
             {
                 throw new RuntimeError("Array index out of bounds", indexExpr.SourceStart);
             }
 
-            return array.Values[index];
+            return array[index];
         }
 
         ArrayInstance EvalArrayLiteral(ArrayLiteral array)

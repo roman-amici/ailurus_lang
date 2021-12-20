@@ -39,6 +39,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             Add("volatile");
             Add("mut");
             Add("ptr");
+            Add("var");
+            Add("varptr");
 
             // Modules
             Add("module");
@@ -48,7 +50,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
             // Misc
             Add("sizeOf");
-            Add("ptrTo");
+            Add("addrOf");
+            Add("varAddrOf");
 
             //Temp
             Add("print");
@@ -65,6 +68,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             Add("float");
             Add("double");
             Add("bool");
+            Add("string");
+            Add("char");
         }
     }
 }

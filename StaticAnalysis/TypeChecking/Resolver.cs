@@ -648,9 +648,24 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     return ResolveArrayLiteral((ArrayLiteral)expr);
                 case ExpressionType.ArrayIndex:
                     return ResolveArrayIndex((ArrayIndex)expr);
+                case ExpressionType.ArraySetExpression:
+                    return ResolveArraySet((ArraySetExpression)expr);
                 default:
                     throw new NotImplementedException();
             }
+        }
+
+        AilurusDataType ResolveArraySet(ArraySetExpression expr)
+        {
+            var valueType = ResolveExpression(expr.Value);
+            var arrayValueType = ResolveExpression(expr.ArrayIndex);
+
+            if (!CanAssignTo(arrayValueType, valueType, expr.PointerAssign, out string errorMessage))
+            {
+                Error(errorMessage, expr.SourceStart);
+            }
+
+            return arrayValueType;
         }
 
         AilurusDataType ResolveArrayIndex(ArrayIndex index)
@@ -658,13 +673,17 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             var callsiteType = ResolveExpression(index.CallSite);
 
             AilurusDataType expressionType = ErrorType.Instance;
-            if (!(callsiteType is ArrayType))
+            if (callsiteType is StringType)
             {
-                Error($"Expected array type for index but instead found type '{callsiteType.DataTypeName}'.", index.CallSite.SourceStart);
+                expressionType = CharType.Instance;
+            }
+            else if (callsiteType is ArrayType a)
+            {
+                expressionType = a.BaseType;
             }
             else
             {
-                expressionType = callsiteType;
+                Error($"Expected type 'array' or type 'string' but found type '{callsiteType.DataTypeName}'.", index.CallSite.SourceStart);
             }
 
             var indexType = ResolveExpression(index.IndexExpression);
@@ -943,6 +962,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     bool _ => BooleanType.Instance,
                     int _ => IntType.InstanceSigned,
                     double _ => DoubleType.Instance,
+                    char _ => CharType.Instance,
                     _ => throw new NotImplementedException(),
                 };
             }

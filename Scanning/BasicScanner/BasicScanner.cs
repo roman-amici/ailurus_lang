@@ -253,6 +253,8 @@ namespace AilurusLang.Scanning.BasicScanner
                     }
                 case '"':
                     return ScanString();
+                case '\'':
+                    return ScanChar();
 
                 case ' ':
                 case '\r':
@@ -294,6 +296,30 @@ namespace AilurusLang.Scanning.BasicScanner
                 }
                 Advance();
             }
+        }
+
+        Token ScanChar()
+        {
+            while (CurrentChar != '\'' && !IsAtEnd)
+            {
+                Advance();
+            }
+
+            if (IsAtEnd)
+            {
+                throw new SyntaxError("Unterminated char literal.", SourceFileName, Line, Column);
+            }
+
+            //Consume the closing "'" char
+            Advance();
+
+            var text = Source.SubstringRange(Start + 1, Current - 1);
+            if (text.Length < 0)
+            {
+                throw new SyntaxError("Emptry char literal.", SourceFileName, Line, Column);
+            }
+
+            return CreateToken(TokenType.CharConstant, text);
         }
 
         Token ScanString()
