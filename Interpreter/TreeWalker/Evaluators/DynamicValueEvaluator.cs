@@ -640,7 +640,7 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
                 case AliasType alias:
                     return ValueFromDatatype(Value, alias.BaseType);
                 case StringType _:
-                    return new StringInstance() { Value = (string)Value };
+                    return new StringInstance() { Value = (string)Value, Initialized = true };
                 default:
                     throw new NotImplementedException();
             }

@@ -42,6 +42,7 @@ namespace AilurusLang.Scanning.BasicScanner
             Add("mut", TokenType.Mut);
             Add("ptr", TokenType.Ptr);
             Add("varptr", TokenType.VarPtr);
+            Add("var", TokenType.Var);
 
             // Modules
             Add("module", TokenType.Module);
@@ -57,6 +58,7 @@ namespace AilurusLang.Scanning.BasicScanner
             Add("addrOf", TokenType.AddrOf);
             Add("varAddrOf", TokenType.VarAddrOf);
             Add("free", TokenType.Free);
+            Add("new", TokenType.New);
 
             //Temp
             Add("print", TokenType.DebugPrint);

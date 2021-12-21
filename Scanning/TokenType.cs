@@ -85,6 +85,7 @@ namespace AilurusLang.Scanning
         Mut,
         VarPtr,
         Ptr,
+        Var,
 
         // Modules
         Module,
@@ -100,6 +101,7 @@ namespace AilurusLang.Scanning
         AddrOf,
         VarAddrOf,
         Free,
+        New,
 
         DebugPrint,
 

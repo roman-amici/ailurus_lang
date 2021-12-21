@@ -5,7 +5,6 @@ using AilurusLang.Interpreter.Runtime;
 using AilurusLang.Interpreter.TreeWalker.Evaluators;
 using AilurusLang.Parsing.AST;
 using AilurusLang.Scanning;
-using AilurusLang.StaticAnalysis.TypeChecking;
 
 namespace AilurusLang.Interpreter.TreeWalker
 {
@@ -161,15 +160,49 @@ namespace AilurusLang.Interpreter.TreeWalker
                 case ForEachStatement forEachStatement:
                     EvalForEachStatement(forEachStatement);
                     break;
+                case FreeStatement freeStatement:
+                    EvalFreeStatement(freeStatement);
+                    break;
                 default:
                     throw new NotImplementedException();
 
             }
         }
 
+        void EvalFreeStatement(FreeStatement freeStatement)
+        {
+            var pointTo = EvalExpression(freeStatement.Expr);
+
+            var initialized = false;
+            if (pointTo is HeapPointer p)
+            {
+                initialized = p.Initialized;
+                p.Initialized = false;
+            }
+            else if (pointTo is IArrayInstanceLike a && a.IsOnHeap)
+            {
+                initialized = a.Initialized;
+                a.Initialized = false;
+            }
+            else
+            {
+                throw new RuntimeError("Attempted to free memory not on the heap", freeStatement.Expr.SourceStart);
+            }
+
+            if (!initialized)
+            {
+                throw new RuntimeError("Attempted to free memory that has already been freed.", freeStatement.Expr.SourceStart);
+            }
+        }
+
         void EvalForEachStatement(ForEachStatement forEach)
         {
             var iteratedValue = EvalExpression(forEach.IteratedValue).GetAs<IArrayInstanceLike>();
+
+            if (iteratedValue.IsOnHeap && !iteratedValue.Initialized)
+            {
+                throw new RuntimeError("Attempt to access array like with invalid memory.", forEach.IteratedValue.SourceStart);
+            }
 
             PushBlockEnvironment();
 
@@ -360,6 +393,11 @@ namespace AilurusLang.Interpreter.TreeWalker
             var array = EvalExpression(expr.ArrayIndex.CallSite).GetAs<IArrayInstanceLike>();
             var index = EvalExpression(expr.ArrayIndex.IndexExpression).GetAs<int>();
 
+            if (array.IsOnHeap && !array.Initialized)
+            {
+                throw new RuntimeError("Attempted to access array which is not initialized.", expr.ArrayIndex.CallSite.SourceStart);
+            }
+
             if (index >= array.Count)
             {
                 throw new RuntimeError("Array index out of bounds", expr.SourceStart);
@@ -374,6 +412,11 @@ namespace AilurusLang.Interpreter.TreeWalker
         {
             var array = EvalExpression(indexExpr.CallSite).GetAs<IArrayInstanceLike>();
             var index = EvalExpression(indexExpr.IndexExpression).GetAs<int>();
+
+            if (array.IsOnHeap && !array.Initialized)
+            {
+                throw new RuntimeError("Attempt to access array which is not initialized.", indexExpr.CallSite.SourceStart);
+            }
 
             if (index >= array.Count)
             {
@@ -409,7 +452,9 @@ namespace AilurusLang.Interpreter.TreeWalker
             return new ArrayInstance()
             {
                 ArrayType = array.DataType as ArrayType,
-                Values = values
+                Values = values,
+                IsOnHeap = false,
+                Initialized = true,
             };
         }
 
@@ -526,21 +571,59 @@ namespace AilurusLang.Interpreter.TreeWalker
             {
                 TokenType.Bang => Evaluator.EvalUnaryBang(value, unary),
                 TokenType.Minus => Evaluator.EvalUnaryMinus(value, unary),
-                TokenType.At => EvalUnaryDereference(value),
+                TokenType.At => EvalUnaryDereference(value, unary),
                 TokenType.LenOf => EvalLenOf(value),
+                TokenType.New => EvalNew(value),
                 _ => throw new NotImplementedException(),
             };
         }
 
+        AilurusValue EvalNew(AilurusValue value)
+        {
+            if (value is ArrayInstance a)
+            {
+                return new ArrayInstance()
+                {
+                    ArrayType = a.ArrayType,
+                    Values = new List<AilurusValue>(a.Values),
+                    IsOnHeap = true,
+                    Initialized = true
+                };
+            }
+            else if (value is StringInstance s)
+            {
+                return new StringInstance()
+                {
+                    Value = s.Value,
+                    IsOnHeap = true,
+                    Initialized = true
+                };
+            }
+            else
+            {
+                return new HeapPointer() { Value = value.ByValue(), Initialized = true };
+            }
+        }
+
         AilurusValue EvalLenOf(AilurusValue value)
         {
-            var count = value.GetAs<IArrayInstanceLike>().Count;
+            var instance = value.GetAs<IArrayInstanceLike>();
+            var count = instance.Count;
+
+            if (instance.IsOnHeap && !instance.Initialized)
+            {
+                throw new RuntimeError("Attempted to get len of invalid ArrayLike.");
+            }
             return new DynamicValue() { Value = count };
         }
 
-        AilurusValue EvalUnaryDereference(AilurusValue value)
+        AilurusValue EvalUnaryDereference(AilurusValue value, Unary unary)
         {
             var pointer = value.GetAs<Pointer>();
+            if (!pointer.IsValid)
+            {
+                throw new RuntimeError("Dereference of invalid pointer.", unary.SourceStart);
+            }
             return pointer.Deref();
         }
 

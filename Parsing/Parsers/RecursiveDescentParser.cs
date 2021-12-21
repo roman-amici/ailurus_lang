@@ -360,22 +360,12 @@ namespace AilurusLang.Parsing.Parsers
                     };
                 }
             }
-            else if (Match(TokenType.At))
-            {
-                var op = Previous;
-                var expr = Unary();
-
-                return new Unary()
-                {
-                    Operator = op,
-                    Expr = expr,
-                    SourceStart = op,
-                };
-            }
-            if (Match(
+            else if (Match(
                 TokenType.Bang,
                 TokenType.Minus,
-                TokenType.LenOf
+                TokenType.LenOf,
+                TokenType.At,
+                TokenType.New
             ))
             {
                 var op = Previous;
@@ -389,7 +379,6 @@ namespace AilurusLang.Parsing.Parsers
                 };
             }
 
-            // This will be 'call' instead eventually
             return Call();
         }
 
@@ -1160,6 +1149,8 @@ namespace AilurusLang.Parsing.Parsers
         {
             var start = Previous;
             var expr = Expression();
+
+            Consume(TokenType.Semicolon, "Expected ';' after 'free'.");
 
             return new FreeStatement()
             {

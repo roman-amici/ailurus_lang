@@ -614,6 +614,25 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
         }
 
+        bool IsArrayLikeType(AilurusDataType type)
+        {
+            if (type is AliasType a)
+            {
+                return IsArrayLikeType(a.BaseType);
+            }
+            else
+            {
+                if (type is ArrayType || type is StringType)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+
         #endregion
 
         #region Resolve Expression
@@ -1114,11 +1133,29 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                         Error($"Expected type 'array' or 'string' for operator 'lenOf' but found type '{inner.DataTypeName}'.", unary.Expr.SourceStart);
                     }
                     break;
+                case TokenType.New:
+                    unary.DataType = ResolveNew(inner);
+                    break;
                 default:
                     throw new NotImplementedException();
             }
 
             return unary.DataType;
+        }
+
+        AilurusDataType ResolveNew(AilurusDataType innerType)
+        {
+            if (innerType is ArrayType)
+            {
+                return innerType;
+            }
+            else
+            {
+                return new PointerType()
+                {
+                    BaseType = innerType,
+                };
+            }
         }
 
         AilurusDataType ResolveIfExpression(IfExpression ifExpr)
@@ -1293,9 +1330,9 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         void ResolveFreeStatement(FreeStatement freeStatement)
         {
             var expression = ResolveExpression(freeStatement.Expr);
-            if (!IsPointerType(expression))
+            if (!IsPointerType(expression) && !IsArrayLikeType(expression))
             {
-                Error($"Argument to 'free' operator must be a pointer type, found {expression.DataTypeName}", freeStatement.SourceStart);
+                Error($"Argument to 'free' operator must be a pointer, array or string type, found {expression.DataTypeName}", freeStatement.SourceStart);
             }
         }
 

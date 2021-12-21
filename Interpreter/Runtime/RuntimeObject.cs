@@ -281,6 +281,7 @@ namespace AilurusLang.Interpreter.Runtime
         public override void Assign(AilurusValue value)
         {
             Value = value;
+            Initialized = true;
         }
 
         public override AilurusValue Deref()
@@ -342,6 +343,9 @@ namespace AilurusLang.Interpreter.Runtime
     {
         int Count { get; }
 
+        bool IsOnHeap { get; set; }
+        bool Initialized { get; set; }
+
         AilurusValue this[int i] { get; set; }
     }
 
@@ -351,6 +355,9 @@ namespace AilurusLang.Interpreter.Runtime
 
         // Maybe just store it as a char array?
         public string Value { get; set; }
+
+        public bool IsOnHeap { get; set; }
+        public bool Initialized { get; set; }
 
         public override bool AssertType(AilurusDataType dataType)
         {
@@ -388,6 +395,9 @@ namespace AilurusLang.Interpreter.Runtime
 
         public ArrayType ArrayType { get; set; }
         public List<AilurusValue> Values { get; set; }
+
+        public bool IsOnHeap { get; set; }
+        public bool Initialized { get; set; }
 
         public override string TypeName => $"[{ArrayType.DataTypeName}]";
 
