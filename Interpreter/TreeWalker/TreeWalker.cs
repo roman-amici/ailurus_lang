@@ -383,6 +383,7 @@ namespace AilurusLang.Interpreter.TreeWalker
                 ExpressionType.ArrayLiteral => EvalArrayLiteral((ArrayLiteral)expr),
                 ExpressionType.ArrayIndex => EvalArrayIndex((ArrayIndex)expr),
                 ExpressionType.ArraySetExpression => EvalArraySet((ArraySetExpression)expr),
+                ExpressionType.New => EvalNewAlloc((NewAlloc)expr),
                 _ => throw new NotImplementedException(),
             };
         }
@@ -573,13 +574,14 @@ namespace AilurusLang.Interpreter.TreeWalker
                 TokenType.Minus => Evaluator.EvalUnaryMinus(value, unary),
                 TokenType.At => EvalUnaryDereference(value, unary),
                 TokenType.LenOf => EvalLenOf(value),
-                TokenType.New => EvalNew(value),
                 _ => throw new NotImplementedException(),
             };
         }
 
-        AilurusValue EvalNew(AilurusValue value)
+        AilurusValue EvalNewAlloc(NewAlloc newAlloc)
         {
+            var value = EvalExpression(newAlloc.Expr);
+
             if (value is ArrayInstance a)
             {
                 return new ArrayInstance()

@@ -20,9 +20,6 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         public bool WasInLoopBody { get; set; }
         public bool IsInLoopBody { get; set; }
 
-        public bool IsInNewExpression { get; set; }
-        public bool WasInNewExpression { get; set; }
-
         public bool IsInFunctionDefinition { get; set; }
         public AilurusDataType CurrentFunctionReturnType { get; set; }
 
@@ -36,8 +33,6 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             IsInLoopBody = false;
             WasInLoopBody = false;
             IsInFunctionDefinition = false;
-            IsInNewExpression = false;
-            WasInNewExpression = false;
         }
 
         void Error(string message, Token token)
@@ -113,16 +108,6 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             EndScope();
             IsInFunctionDefinition = false;
             CurrentFunctionReturnType = null;
-        }
-
-        void EnterNewStatement()
-        {
-            IsInNewExpression = true;
-        }
-
-        void ExitNewStatement()
-        {
-            IsInNewExpression = false;
         }
 
         #endregion
@@ -664,11 +649,13 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 case ExpressionType.AddrOfExpression:
                     return ResolveAddrOfExpression((AddrOfExpression)expr);
                 case ExpressionType.ArrayLiteral:
-                    return ResolveArrayLiteral((ArrayLiteral)expr);
+                    return ResolveArrayLiteral((ArrayLiteral)expr, false);
                 case ExpressionType.ArrayIndex:
                     return ResolveArrayIndex((ArrayIndex)expr);
                 case ExpressionType.ArraySetExpression:
                     return ResolveArraySet((ArraySetExpression)expr);
+                case ExpressionType.New:
+                    return ResolveNew((NewAlloc)expr);
                 default:
                     throw new NotImplementedException();
             }
@@ -716,7 +703,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             return expressionType;
         }
 
-        AilurusDataType ResolveArrayLiteral(ArrayLiteral array)
+        AilurusDataType ResolveArrayLiteral(ArrayLiteral array, bool isInNewExpression)
         {
             AilurusDataType baseType = null;
             if (array.Elements != null)
@@ -753,7 +740,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 {
                     Error($"Array fill length must be a positive integer but was instead of type {fillLengthType.DataTypeName}", array.FillLength.SourceStart);
                 }
-                if (!IsInNewExpression && !IsStaticExpression(array.FillLength))
+                if (!isInNewExpression && !IsStaticExpression(array.FillLength))
                 {
                     Error($"Array literals outside of a 'new' expression must be have a static size", array.FillLength.SourceStart);
                 }
@@ -1133,9 +1120,6 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                         Error($"Expected type 'array' or 'string' for operator 'lenOf' but found type '{inner.DataTypeName}'.", unary.Expr.SourceStart);
                     }
                     break;
-                case TokenType.New:
-                    unary.DataType = ResolveNew(inner);
-                    break;
                 default:
                     throw new NotImplementedException();
             }
@@ -1143,17 +1127,27 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             return unary.DataType;
         }
 
-        AilurusDataType ResolveNew(AilurusDataType innerType)
+        AilurusDataType ResolveNew(NewAlloc newExpression)
         {
-            if (innerType is ArrayType)
+            AilurusDataType exprType;
+            if (newExpression.Expr is ArrayLiteral l)
             {
-                return innerType;
+                exprType = ResolveArrayLiteral(l, true);
+            }
+            else
+            {
+                exprType = ResolveExpression(newExpression.Expr);
+            }
+
+            if (exprType is ArrayType)
+            {
+                return exprType;
             }
             else
             {
                 return new PointerType()
                 {
-                    BaseType = innerType,
+                    BaseType = exprType,
                 };
             }
         }

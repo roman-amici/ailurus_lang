@@ -360,6 +360,17 @@ namespace AilurusLang.Parsing.Parsers
                     };
                 }
             }
+            else if (Match(TokenType.New))
+            {
+                var op = Previous;
+                var expr = Unary();
+
+                return new NewAlloc()
+                {
+                    Expr = expr,
+                    SourceStart = op
+                };
+            }
             else if (Match(
                 TokenType.Bang,
                 TokenType.Minus,

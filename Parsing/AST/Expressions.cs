@@ -23,6 +23,7 @@ namespace AilurusLang.Parsing.AST
         ArrayLiteral,
         ArrayIndex,
         ArraySetExpression,
+        New,
     }
 
     public abstract class ExpressionNode : ASTNode
@@ -50,6 +51,12 @@ namespace AilurusLang.Parsing.AST
         public Unary() : base(ExpressionType.Unary) { }
         public ExpressionNode Expr { get; set; }
         public Token Operator { get; set; } // TODO, should this be a token?
+    }
+
+    public class NewAlloc : ExpressionNode
+    {
+        public NewAlloc() : base(ExpressionType.New) { }
+        public ExpressionNode Expr { get; set; }
     }
 
     public abstract class BinaryLike : ExpressionNode
