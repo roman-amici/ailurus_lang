@@ -15,11 +15,22 @@
  10. ~~Array element assignment.~~
  11. Mutability semantics + syntax for arrays.
  12. ~~String and char types~~
- 13. Foreach loop on arrays and strings.
- 14. Heap allocation (new, free)
+ 13. ~~Foreach loop on arrays and strings.~~
+ 14. ~~Heap allocation (new, free)~~
  15. Variants
  16. Address of array elements
   - Address of array elements in foreach loop
+
+## Front End Cleanup
+1. Synchronization
+2. Split Resolver into multiple passes
+ - Type Checking
+ - Variable Resolution
+ - Static Analysis
+3. Standardize Error Handling and warnings
+4. Spans for error handling (rather than just columns)
+5. Different IR for parser output and resolver output
+ - Or at least split the properties better
 
 ## Standard Library
  1. Build minimal C-like standard library

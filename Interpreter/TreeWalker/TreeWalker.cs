@@ -384,8 +384,15 @@ namespace AilurusLang.Interpreter.TreeWalker
                 ExpressionType.ArrayIndex => EvalArrayIndex((ArrayIndex)expr),
                 ExpressionType.ArraySetExpression => EvalArraySet((ArraySetExpression)expr),
                 ExpressionType.New => EvalNewAlloc((NewAlloc)expr),
+                ExpressionType.VarCast => EvalVarCast((VarCast)expr),
                 _ => throw new NotImplementedException(),
             };
+        }
+
+        AilurusValue EvalVarCast(VarCast expr)
+        {
+            // Var cast is purely for the type system.
+            return EvalExpression(expr.Expr);
         }
 
         AilurusValue EvalArraySet(ArraySetExpression expr)

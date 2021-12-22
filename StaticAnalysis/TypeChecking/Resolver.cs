@@ -42,6 +42,11 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             Console.WriteLine(error);
         }
 
+        void Warning(string message, Token token)
+        {
+            Console.WriteLine($"Warning:{token.SourceFile}:{token.Line}:{token.Column} - {message}");
+        }
+
         #region EntryPoints
 
         public void ResolveStatements(List<StatementNode> statements)
@@ -280,7 +285,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     return new PointerType()
                     {
                         BaseType = baseType,
-                        IsVariable = p.IsVariable
+                        IsVariable = p.IsVariable,
                     };
                 }
             }
@@ -295,7 +300,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 {
                     return new ArrayType()
                     {
-                        BaseType = baseType
+                        BaseType = baseType,
+                        IsVariable = a.IsVariable
                     };
                 }
             }
@@ -310,6 +316,21 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 if (type is PlaceholderType placeholder)
                 {
                     type = placeholder.ResolvedType;
+                }
+
+                if (b.VarModifier)
+                {
+                    if (type is StringType)
+                    {
+                        return new StringType()
+                        {
+                            IsVariable = true
+                        };
+                    }
+                    else
+                    {
+                        Warning("'var' applied to type which cannot be variable. Modifier will be ignored.", b.Name);
+                    }
                 }
 
                 return type;
@@ -434,7 +455,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 }
                 if (lhsIsVariable && !rhsIsVariable)
                 {
-                    errorMessage = $"Cannot assign variable pointer to constant pointer without a cast.";
+                    errorMessage = "Cannot assign a constant pointer to variable pointer without a cast.";
                     return false;
                 }
                 return lhsPtrCount == rhsPtrCount && TypesAreEqual(lhsBaseType, rhsBaseType);
@@ -445,10 +466,20 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             if (!result)
             {
                 errorMessage = genericError;
-            };
+            }
+            else
+            {
+                if (assertedType is IArrayLikeType a1 && rhsType is IArrayLikeType a2)
+                {
+                    if (a1.IsVariable && !a2.IsVariable)
+                    {
+                        result = false;
+                        errorMessage = "Cannot assign a constant array to a variable array without cast.";
+                    }
+                }
+            }
 
             return result;
-
         }
 
         AilurusDataType GetNumericOperatorCoercion(AilurusDataType t1, AilurusDataType t2)
@@ -656,9 +687,49 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     return ResolveArraySet((ArraySetExpression)expr);
                 case ExpressionType.New:
                     return ResolveNew((NewAlloc)expr);
+                case ExpressionType.VarCast:
+                    return ResolveVarCast((VarCast)expr);
                 default:
                     throw new NotImplementedException();
             }
+        }
+
+        AilurusDataType ResolveVarCast(VarCast expr)
+        {
+            var dataType = ResolveExpression(expr.Expr);
+            if (dataType is ArrayType a && expr.Expr is ArrayLiteral)
+            {
+                dataType = new ArrayType()
+                {
+                    BaseType = a.BaseType,
+                    IsVariable = true
+                };
+                expr.Expr.DataType = dataType;
+            }
+            // String constant
+            else if (dataType is StringType && expr.Expr is Literal)
+            {
+                dataType = new StringType()
+                {
+                    IsVariable = true
+                };
+                expr.Expr.DataType = dataType;
+            }
+            else if (dataType is PointerType p && expr.Expr is NewAlloc)
+            {
+                dataType = new PointerType()
+                {
+                    BaseType = p.BaseType,
+                    IsVariable = true,
+                };
+            }
+            else
+            {
+                Error("Operator 'var' can only apply to Array Literals, String Literal, and 'new' expressions.", expr.SourceStart);
+            }
+
+            expr.DataType = dataType;
+            return dataType;
         }
 
         AilurusDataType ResolveArraySet(ArraySetExpression expr)
@@ -666,11 +737,20 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             var valueType = ResolveExpression(expr.Value);
             var arrayValueType = ResolveExpression(expr.ArrayIndex);
 
+            if (expr.ArrayIndex.CallSite.DataType is IArrayLikeType a)
+            {
+                if (!a.IsVariable)
+                {
+                    Error("Cannot assign to array since its is not declared as variable.", expr.ArrayIndex.CallSite.SourceStart);
+                }
+            }
+
             if (!CanAssignTo(arrayValueType, valueType, expr.PointerAssign, out string errorMessage))
             {
                 Error(errorMessage, expr.SourceStart);
             }
 
+            expr.DataType = arrayValueType;
             return arrayValueType;
         }
 
@@ -932,6 +1012,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         {
             var resolution = FindVariableDefinition(expr.Name.Lexeme);
 
+            expr.DataType = ErrorType.Instance;
             if (resolution == null)
             {
                 Error($"No variable was found with name {expr.Name.Lexeme}", expr.SourceStart);
@@ -945,15 +1026,15 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 {
                     Error($"Variable '{expr.Name.Lexeme}' referenced before assignment.", expr.Name);
                 }
-                return v.DataType;
+                expr.DataType = v.DataType;
             }
             else if (resolution is FunctionResolution f)
             {
-                return f.Declaration.DataType;
+                expr.DataType = f.Declaration.DataType;
             }
 
             // Unreachable
-            return ErrorType.Instance;
+            return expr.DataType;
         }
 
         AilurusDataType ResolveLiteral(Literal literal)
@@ -1134,6 +1215,15 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             {
                 exprType = ResolveArrayLiteral(l, true);
             }
+            else if (newExpression.Expr is VarCast varCast
+            && varCast.Expr is ArrayLiteral ll)
+            {
+                exprType = ResolveArrayLiteral(ll, true);
+                if (exprType is ArrayType a)
+                {
+                    a.IsVariable = true;
+                }
+            }
             else
             {
                 exprType = ResolveExpression(newExpression.Expr);
@@ -1141,15 +1231,21 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
             if (exprType is ArrayType)
             {
-                return exprType;
+                newExpression.DataType = exprType;
+            }
+            else if (exprType is StringType)
+            {
+                newExpression.DataType = exprType;
             }
             else
             {
-                return new PointerType()
+                newExpression.DataType = new PointerType()
                 {
                     BaseType = exprType,
                 };
             }
+
+            return newExpression.DataType;
         }
 
         AilurusDataType ResolveIfExpression(IfExpression ifExpr)
@@ -1174,6 +1270,25 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
 
             return ifExpr.DataType;
+        }
+
+        bool IsInitializerExpression(ExpressionNode node)
+        {
+            if (node is VarCast c)
+            {
+                return IsInitializerExpression(c.Expr);
+            }
+            else if (
+                node is NewAlloc ||
+                node is ArrayLiteral ||
+                node is Literal)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
 
         #endregion
@@ -1236,6 +1351,19 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             {
                 Error($"Could not infer type for variable '{let.Name.Lexeme}'", let.Name);
                 return;
+            }
+
+            // Inherit variability from asserted type rather than initializer type.
+            if (assertedType is IArrayLikeType a &&
+                a.IsVariable)
+            {
+                if (initializerType is IArrayLikeType aa)
+                {
+                    if (IsInitializerExpression(let.Initializer))
+                    {
+                        aa.IsVariable = a.IsVariable;
+                    }
+                }
             }
 
             // TODO: Allow pointer assignments in let expressions

@@ -24,6 +24,7 @@ namespace AilurusLang.Parsing.AST
         ArrayIndex,
         ArraySetExpression,
         New,
+        VarCast,
     }
 
     public abstract class ExpressionNode : ASTNode
@@ -175,5 +176,13 @@ namespace AilurusLang.Parsing.AST
         public ArrayIndex ArrayIndex { get; set; }
         public ExpressionNode Value { get; set; }
         public bool PointerAssign { get; set; }
+    }
+
+    public class VarCast : ExpressionNode
+    {
+        public VarCast() : base(ExpressionType.VarCast) { }
+
+        // Should be array literal or string constant
+        public ExpressionNode Expr { get; set; }
     }
 }

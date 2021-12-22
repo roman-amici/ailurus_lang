@@ -23,4 +23,5 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             return $"{SourceFile}:{Line}:{Column} - {Message}";
         }
     }
+
 }

@@ -79,10 +79,12 @@ namespace AilurusLang.DataType
 
     public class StringType : AilurusDataType, IArrayLikeType
     {
-        public AilurusDataType ElementType => CharType.Instance;
 
         public readonly static StringType Instance = new StringType();
 
+        public AilurusDataType ElementType => CharType.Instance;
+
+        public bool IsVariable { get; set; }
         public override string DataTypeName => "string";
     }
 
@@ -134,6 +136,7 @@ namespace AilurusLang.DataType
     public interface IArrayLikeType
     {
         AilurusDataType ElementType { get; }
+        public bool IsVariable { get; set; }
     }
 
     public class ArrayType : AilurusDataType, IArrayLikeType
@@ -143,6 +146,7 @@ namespace AilurusLang.DataType
 
         public AilurusDataType BaseType { get; set; }
         public override string DataTypeName => $"[{BaseType.DataTypeName}]";
+        public bool IsVariable { get; set; }
     }
 
     public class NullType : AilurusDataType

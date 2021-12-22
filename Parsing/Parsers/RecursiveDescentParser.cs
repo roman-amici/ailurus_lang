@@ -371,6 +371,17 @@ namespace AilurusLang.Parsing.Parsers
                     SourceStart = op
                 };
             }
+            else if (Match(TokenType.Var))
+            {
+                var op = Previous;
+                var expr = Unary();
+
+                return new VarCast()
+                {
+                    Expr = expr,
+                    SourceStart = op
+                };
+            }
             else if (Match(
                 TokenType.Bang,
                 TokenType.Minus,
@@ -818,6 +829,9 @@ namespace AilurusLang.Parsing.Parsers
         TypeName TypeName()
         {
             TypeName baseType;
+
+            var arrayModifier = Match(TokenType.Var);
+
             if (Match(TokenType.LeftBracket))
             {
                 var innerTypeName = TypeName();
@@ -825,14 +839,16 @@ namespace AilurusLang.Parsing.Parsers
 
                 baseType = new ArrayTypeName()
                 {
-                    BaseTypeName = innerTypeName
+                    BaseTypeName = innerTypeName,
+                    IsVariable = arrayModifier
                 };
             }
             else
             {
                 baseType = new BaseTypeName()
                 {
-                    Name = Consume(TokenType.Identifier, "Expected type name")
+                    Name = Consume(TokenType.Identifier, "Expected type name"),
+                    VarModifier = arrayModifier
                 };
             }
 
