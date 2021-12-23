@@ -403,20 +403,30 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
                 return true;
             }
-            else if (t1 is ArrayType a1 && t2 is ArrayType a2)
+            else if (t1 is IArrayLikeType a1 && t2 is IArrayLikeType a2)
             {
                 return (a1.IsVariable == a2.IsVariable)
-                    && TypesAreEqual(a1.BaseType, a2.BaseType);
+                    && TypesAreEqual(a1.ElementType, a2.ElementType);
             }
             else if (t1 is PointerType p1 && t2 is PointerType p2)
             {
                 return p1.IsVariable == p2.IsVariable
                     && TypesAreEqual(p1.BaseType, p2.BaseType);
             }
+            else if (t1 is StructType s1 && t2 is StructType s2)
+            {
+                // Structs are nominally typed
+                return s1 == s2;
+            }
+            else if (t1 is IntegralType i1 && t2 is IntegralType i2)
+            {
+                return t1.GetType() == t2.GetType()
+                    && i1.Unsigned == i2.Unsigned;
+            }
             else
             {
-                // This includes structs and the base types
-                return t1 == t2;
+                // Just incase we forgot to use the instances
+                return t1.GetType() == t2.GetType();
             }
 
         }
@@ -469,10 +479,10 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 }
                 return false;
             }
-            else if (lhsType is ArrayType lhsArray && rhsType is ArrayType rhsArray)
+            else if (lhsType is IArrayLikeType lhsArray && rhsType is IArrayLikeType rhsArray)
             {
                 // Type equality since we don't allow type coercion here.
-                if (TypesAreEqual(lhsArray.BaseType, rhsArray.BaseType))
+                if (TypesAreEqual(lhsArray.ElementType, rhsArray.ElementType))
                 {
                     if (lhsArray.IsVariable && !rhsArray.IsVariable)
                     {

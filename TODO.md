@@ -18,8 +18,8 @@
  13. ~~Foreach loop on arrays and strings.~~
  14. ~~Heap allocation (new, free)~~
  15. Variants
- 16. Address of array elements
-  - Address of array elements in foreach loop
+ 16. ~~Address of array elements~~
+  - ~~Address of array elements in foreach loop~~
  17. Tuples
 
 ## Front End Cleanup
