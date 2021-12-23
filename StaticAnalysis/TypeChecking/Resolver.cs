@@ -365,20 +365,23 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         bool TypesAreEqual(AilurusDataType t1, AilurusDataType t2)
         {
-            var t1BaseType = UnwrapPtrTypes(t1, out int t1PtrCount, out bool t1Variable);
-            var t2BaseType = UnwrapPtrTypes(t2, out int t2PtrCount, out bool t2Variable);
-
-            if (t1PtrCount != t2PtrCount)
+            if (t1 is AliasType alias1)
             {
-                return false;
+                return TypesAreEqual(alias1.BaseType, t2);
             }
-
-            if (t1Variable != t2Variable)
+            else if (t2 is AliasType alias2)
             {
-                return false;
+                return TypesAreEqual(t1, alias2.BaseType);
             }
-
-            if (t1BaseType is FunctionType f1 && t2BaseType is FunctionType f2)
+            else if (t1 is PlaceholderType p1)
+            {
+                return TypesAreEqual(p1.ResolvedType, t2);
+            }
+            else if (t2 is PlaceholderType p2)
+            {
+                return TypesAreEqual(t1, p2.ResolvedType);
+            }
+            if (t1 is FunctionType f1 && t2 is FunctionType f2)
             {
                 if (!TypesAreEqual(f1.ReturnType, f1.ReturnType))
                 {
@@ -400,28 +403,104 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
                 return true;
             }
-            else if (t1BaseType is ArrayType a1 && t2BaseType is ArrayType a2)
+            else if (t1 is ArrayType a1 && t2 is ArrayType a2)
             {
-                return TypesAreEqual(a1.BaseType, a2.BaseType);
+                return (a1.IsVariable == a2.IsVariable)
+                    && TypesAreEqual(a1.BaseType, a2.BaseType);
+            }
+            else if (t1 is PointerType p1 && t2 is PointerType p2)
+            {
+                return p1.IsVariable == p2.IsVariable
+                    && TypesAreEqual(p1.BaseType, p2.BaseType);
+            }
+            else
+            {
+                // This includes structs and the base types
+                return t1 == t2;
             }
 
-            return t1BaseType.GetType() == t2BaseType.GetType();
         }
 
-        bool CanAssignTo(AilurusDataType lhsType, AilurusDataType rhsType, bool pointerAssign, out string errorMessage)
+        bool CanCoerceNumericType(NumericType lhsType, NumericType rhsType)
+        {
+            // TODO: actual coercion
+            return true;
+        }
+
+        bool CanAssignToInner(AilurusDataType lhsType, AilurusDataType rhsType, out string errorMessage)
         {
             errorMessage = string.Empty;
             if (lhsType is ErrorType || rhsType is ErrorType)
             {
                 return true;
             }
+            else if (lhsType is AliasType lhsAlias)
+            {
+                return CanAssignToInner(lhsAlias.BaseType, rhsType, out errorMessage);
+            }
+            else if (rhsType is AliasType rhsAlias)
+            {
+                return CanAssignToInner(lhsType, rhsAlias.BaseType, out errorMessage);
+            }
+            else if (lhsType is PlaceholderType lhsPlaceHolder)
+            {
+                return CanAssignToInner(lhsPlaceHolder.ResolvedType, rhsType, out errorMessage);
+            }
+            else if (rhsType is PlaceholderType rhsPlaceHolder)
+            {
+                return CanAssignToInner(lhsType, rhsPlaceHolder.ResolvedType, out errorMessage);
+            }
+            else if (lhsType is PointerType && rhsType is NullType) // Any pointer type can be set to null
+            {
+                return true;
+            }
+            else if (lhsType is PointerType lhsPtr && rhsType is PointerType rhsPtr)
+            {
+                if (CanAssignToInner(lhsPtr.BaseType, rhsPtr.BaseType, out errorMessage))
+                {
+                    if (lhsPtr.IsVariable && !rhsPtr.IsVariable)
+                    {
+                        errorMessage = "Cannot assign a constant pointer to variable pointer without a cast.";
+                    }
+                    else
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            else if (lhsType is ArrayType lhsArray && rhsType is ArrayType rhsArray)
+            {
+                // Type equality since we don't allow type coercion here.
+                if (TypesAreEqual(lhsArray.BaseType, rhsArray.BaseType))
+                {
+                    if (lhsArray.IsVariable && !rhsArray.IsVariable)
+                    {
+                        errorMessage = "Cannot assign a constant array to a variable array without cast.";
+                    }
+                    else
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            else if (lhsType is NumericType lhsNumeric && rhsType is NumericType rhsNumeric)
+            {
+                return CanCoerceNumericType(lhsNumeric, rhsNumeric);
+            }
+            else
+            {
+                return TypesAreEqual(lhsType, rhsType);
+            }
+        }
 
-            var assertedType = lhsType;
-            bool lhsIsVariable = false;
+        bool CanAssignTo(AilurusDataType lhsType, AilurusDataType rhsType, bool pointerAssign, out string errorMessage)
+        {
             // Do we dereference before we assign?
             if (pointerAssign)
             {
-                assertedType = DereferenceType(assertedType, out lhsIsVariable);
+                lhsType = DereferenceType(lhsType, out bool lhsIsVariable);
                 if (!lhsIsVariable)
                 {
                     errorMessage = "Cannot mutate constant pointer.";
@@ -429,57 +508,15 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 }
             }
 
-            // Check for facile equality first as an optimization
-            if (assertedType == rhsType)
+            errorMessage = $"Cannot assign value of type {rhsType.DataTypeName} to value of type {lhsType.DataTypeName}.";
+            var canAssign = CanAssignToInner(lhsType, rhsType, out string newErrorMessage);
+
+            if (string.IsNullOrEmpty(newErrorMessage))
             {
-                return true;
+                errorMessage = newErrorMessage;
             }
 
-            var lhsBaseType = UnwrapPtrTypes(assertedType, out int lhsPtrCount, out bool _);
-            var rhsBaseType = UnwrapPtrTypes(rhsType, out int rhsPtrCount, out bool rhsIsVariable);
-
-            var genericError = $"Cannot assign value of type {rhsType.DataTypeName} to value of type {assertedType.DataTypeName}.";
-            if (lhsPtrCount == 0 && rhsPtrCount == 0)
-            {
-                if (AilurusDataType.IsNumeric(lhsBaseType) &&
-                    AilurusDataType.IsNumeric(rhsBaseType))
-                {
-                    return true;
-                }
-            }
-            else if (lhsPtrCount > 0)
-            {
-                if (rhsBaseType is NullType)
-                {
-                    return true;
-                }
-                if (lhsIsVariable && !rhsIsVariable)
-                {
-                    errorMessage = "Cannot assign a constant pointer to variable pointer without a cast.";
-                    return false;
-                }
-                return lhsPtrCount == rhsPtrCount && TypesAreEqual(lhsBaseType, rhsBaseType);
-            }
-
-            // Fall through and compare the inner types
-            var result = TypesAreEqual(assertedType, rhsType);
-            if (!result)
-            {
-                errorMessage = genericError;
-            }
-            else
-            {
-                if (assertedType is IArrayLikeType a1 && rhsType is IArrayLikeType a2)
-                {
-                    if (a1.IsVariable && !a2.IsVariable)
-                    {
-                        result = false;
-                        errorMessage = "Cannot assign a constant array to a variable array without cast.";
-                    }
-                }
-            }
-
-            return result;
+            return canAssign;
         }
 
         AilurusDataType GetNumericOperatorCoercion(AilurusDataType t1, AilurusDataType t2)
@@ -1521,9 +1558,24 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 assertedType = ResolveTypeName(forEach.AssertedTypeName);
             }
 
-            // TODO: Allow for reference to elements
-            if (!CanAssignTo(assertedType, elementType, false, out string errorMessage))
+            bool canAssign = CanAssignTo(assertedType, elementType, false, out string errorMessage);
+            if (!canAssign) // Can't assign the array element type to the decleared type
             {
+                // See if we can assign a pointer to the array element instead
+                if (assertedType is PointerType lhs)
+                {
+                    var rhs = new PointerType()
+                    {
+                        BaseType = elementType,
+                    };
+                    canAssign = CanAssignTo(lhs, rhs, false, out string _);
+                    forEach.IterateOverReference = canAssign;
+                }
+            }
+
+            if (!canAssign)
+            {
+                // Use the first error message since its probably closer to what they wanted
                 Error(errorMessage, forEach.Name);
             }
 

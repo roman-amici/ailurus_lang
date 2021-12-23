@@ -127,6 +127,7 @@ namespace AilurusLang.Parsing.AST
         public bool IsMutable { get; set; }
 
         public VariableResolution Resolution { get; set; }
+        public bool IterateOverReference { get; set; }
     }
 
 }

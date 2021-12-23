@@ -203,7 +203,16 @@ namespace AilurusLang.Interpreter.TreeWalker
                     throw new RuntimeError("Attempt to access array like with invalid memory.", forEach.IteratedValue.SourceStart);
                 }
 
-                env.SetValue(forEach.Resolution, iteratedValue[i]);
+                if (forEach.IterateOverReference)
+                {
+                    var ptr = new Pointer() { Memory = iteratedValue.GetElementAddress(i) };
+                    env.SetValue(forEach.Resolution, ptr);
+                }
+                else
+                {
+                    env.SetValue(forEach.Resolution, iteratedValue[i]);
+                }
+
                 EvalBlockStatement(forEach.Body);
             }
 
@@ -493,7 +502,6 @@ namespace AilurusLang.Interpreter.TreeWalker
                 var value = EvalExpression(initializer);
                 values.Add(fieldName.Identifier, new MemoryLocation() { Value = value });
             }
-
             return new StructInstance()
             {
                 StructType = (StructType)expr.DataType,
