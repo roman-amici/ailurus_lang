@@ -652,6 +652,44 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         #endregion
 
         #region Resolve Expression
+
+        #region Compound Expression Identifiers
+        bool IsInitializerExpression(ExpressionNode node)
+        {
+            if (node is VarCast c)
+            {
+                return IsInitializerExpression(c.Expr);
+            }
+            else if (
+                node is NewAlloc ||
+                node is ArrayLiteral ||
+                node is Literal)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        bool IsStringLiteral(ExpressionNode expr)
+        {
+            if (expr is Literal l && l.DataType is StringType)
+            {
+                return true;
+            }
+            else if (expr is VarCast v)
+            {
+                return IsStringLiteral(v.Expr);
+            }
+            else
+            {
+                return false;
+            }
+        }
+        #endregion
+
         AilurusDataType ResolveExpression(ExpressionNode expr)
         {
             switch (expr.ExprType)
@@ -1214,6 +1252,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             if (newExpression.Expr is ArrayLiteral l)
             {
                 exprType = ResolveArrayLiteral(l, true);
+                newExpression.CopyInPlace = true;
             }
             else if (newExpression.Expr is VarCast varCast
             && varCast.Expr is ArrayLiteral ll)
@@ -1223,17 +1262,18 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 {
                     a.IsVariable = true;
                 }
+                newExpression.CopyInPlace = true;
             }
             else
             {
                 exprType = ResolveExpression(newExpression.Expr);
+                if (IsStringLiteral(newExpression.Expr))
+                {
+                    newExpression.CopyInPlace = true;
+                }
             }
 
-            if (exprType is ArrayType)
-            {
-                newExpression.DataType = exprType;
-            }
-            else if (exprType is StringType)
+            if (exprType is ArrayType || exprType is StringType)
             {
                 newExpression.DataType = exprType;
             }
@@ -1270,25 +1310,6 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
 
             return ifExpr.DataType;
-        }
-
-        bool IsInitializerExpression(ExpressionNode node)
-        {
-            if (node is VarCast c)
-            {
-                return IsInitializerExpression(c.Expr);
-            }
-            else if (
-                node is NewAlloc ||
-                node is ArrayLiteral ||
-                node is Literal)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
         }
 
         #endregion

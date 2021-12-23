@@ -350,7 +350,7 @@ namespace AilurusLang.Parsing.Parsers
                 var op = Previous;
                 var expr = Unary();
 
-                if (expr is Get || expr is Variable)
+                if (expr is Get || expr is Variable || expr is ArrayIndex)
                 {
                     return new AddrOfExpression()
                     {

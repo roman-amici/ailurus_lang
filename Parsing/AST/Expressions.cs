@@ -58,6 +58,7 @@ namespace AilurusLang.Parsing.AST
     {
         public NewAlloc() : base(ExpressionType.New) { }
         public ExpressionNode Expr { get; set; }
+        public bool CopyInPlace { get; set; }
     }
 
     public abstract class BinaryLike : ExpressionNode

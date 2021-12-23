@@ -635,12 +635,12 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
                     return new StructInstance()
                     {
                         StructType = structType,
-                        Members = (Dictionary<string, AilurusValue>)Value
+                        Members = (Dictionary<string, MemoryLocation>)Value
                     };
                 case AliasType alias:
                     return ValueFromDatatype(Value, alias.BaseType);
                 case StringType _:
-                    return new StringInstance() { Value = (string)Value, Initialized = true };
+                    return new StringInstance((string)Value, false);
                 default:
                     throw new NotImplementedException();
             }

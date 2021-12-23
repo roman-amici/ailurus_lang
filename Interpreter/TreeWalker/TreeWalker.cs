@@ -19,7 +19,6 @@ namespace AilurusLang.Interpreter.TreeWalker
         public TreeWalker(Evaluator evaluator)
         {
             Evaluator = evaluator;
-            // TODO: Setup module environment from the resolver
         }
 
         #region Environment Management
@@ -27,7 +26,7 @@ namespace AilurusLang.Interpreter.TreeWalker
         void PushBlockEnvironment()
         {
             var blockEnvs = CallStack[^1];
-            blockEnvs.Add(new TreeWalkerEnvironment() { IsValid = true });
+            blockEnvs.Add(new TreeWalkerEnvironment());
         }
 
         void PopBlockEnvironment()
@@ -35,7 +34,7 @@ namespace AilurusLang.Interpreter.TreeWalker
             var blockEnvs = CallStack[^1];
             var env = blockEnvs[^1];
             blockEnvs.RemoveAt(blockEnvs.Count - 1);
-            env.IsValid = false;
+            env.MarkInvalid();
         }
 
         void EnterFunctionEnvironment()
@@ -171,25 +170,19 @@ namespace AilurusLang.Interpreter.TreeWalker
 
         void EvalFreeStatement(FreeStatement freeStatement)
         {
-            var pointTo = EvalExpression(freeStatement.Expr);
+            var pointer = EvalExpression(freeStatement.Expr).GetAs<Pointer>();
 
-            var initialized = false;
-            if (pointTo is HeapPointer p)
+            if (pointer is NullPointer)
             {
-                initialized = p.Initialized;
-                p.Initialized = false;
+                throw new RuntimeError("Attempted to free null pointer.", freeStatement.SourceStart);
             }
-            else if (pointTo is IArrayInstanceLike a && a.IsOnHeap)
-            {
-                initialized = a.Initialized;
-                a.Initialized = false;
-            }
-            else
+
+            if (!pointer.Memory.IsOnHeap)
             {
                 throw new RuntimeError("Attempted to free memory not on the heap", freeStatement.Expr.SourceStart);
             }
 
-            if (!initialized)
+            if (!pointer.Memory.IsValid)
             {
                 throw new RuntimeError("Attempted to free memory that has already been freed.", freeStatement.Expr.SourceStart);
             }
@@ -199,17 +192,17 @@ namespace AilurusLang.Interpreter.TreeWalker
         {
             var iteratedValue = EvalExpression(forEach.IteratedValue).GetAs<IArrayInstanceLike>();
 
-            if (iteratedValue.IsOnHeap && !iteratedValue.Initialized)
-            {
-                throw new RuntimeError("Attempt to access array like with invalid memory.", forEach.IteratedValue.SourceStart);
-            }
-
             PushBlockEnvironment();
 
             var env = GetEnvironmentForVariableResolution(forEach.Resolution);
 
             for (var i = 0; i < iteratedValue.Count; i++)
             {
+                if (!iteratedValue.AccessIsValid(i))
+                {
+                    throw new RuntimeError("Attempt to access array like with invalid memory.", forEach.IteratedValue.SourceStart);
+                }
+
                 env.SetValue(forEach.Resolution, iteratedValue[i]);
                 EvalBlockStatement(forEach.Body);
             }
@@ -401,14 +394,14 @@ namespace AilurusLang.Interpreter.TreeWalker
             var array = EvalExpression(expr.ArrayIndex.CallSite).GetAs<IArrayInstanceLike>();
             var index = EvalExpression(expr.ArrayIndex.IndexExpression).GetAs<int>();
 
-            if (array.IsOnHeap && !array.Initialized)
-            {
-                throw new RuntimeError("Attempted to access array which is not initialized.", expr.ArrayIndex.CallSite.SourceStart);
-            }
-
             if (index >= array.Count)
             {
                 throw new RuntimeError("Array index out of bounds", expr.SourceStart);
+            }
+
+            if (!array.AccessIsValid(index))
+            {
+                throw new RuntimeError("Attempt to access array which is not initialized.", expr.ArrayIndex.CallSite.SourceStart);
             }
 
             array[index] = value;
@@ -421,14 +414,14 @@ namespace AilurusLang.Interpreter.TreeWalker
             var array = EvalExpression(indexExpr.CallSite).GetAs<IArrayInstanceLike>();
             var index = EvalExpression(indexExpr.IndexExpression).GetAs<int>();
 
-            if (array.IsOnHeap && !array.Initialized)
-            {
-                throw new RuntimeError("Attempt to access array which is not initialized.", indexExpr.CallSite.SourceStart);
-            }
-
             if (index >= array.Count)
             {
                 throw new RuntimeError("Array index out of bounds", indexExpr.SourceStart);
+            }
+
+            if (!array.AccessIsValid(index))
+            {
+                throw new RuntimeError("Attempt to access array which is not initialized.", indexExpr.CallSite.SourceStart);
             }
 
             return array[index];
@@ -457,59 +450,48 @@ namespace AilurusLang.Interpreter.TreeWalker
                 }
             }
 
-            return new ArrayInstance()
+            return new ArrayInstance(values, false);
+        }
+
+        MemoryLocation LoadEffectiveAddress(ExpressionNode expr)
+        {
+            if (expr is Variable v)
             {
-                ArrayType = array.DataType as ArrayType,
-                Values = values,
-                IsOnHeap = false,
-                Initialized = true,
-            };
+                var environment = GetEnvironmentForVariable(v.Resolution, v.Name);
+                return environment.GetAddress(v.Resolution);
+            }
+            if (expr is Get g)
+            {
+                var callSite = EvalExpression(g.CallSite).GetAs<StructInstance>();
+                return callSite.GetMemberAddress(g.FieldName.Identifier);
+            }
+            if (expr is ArrayIndex a)
+            {
+                var index = EvalExpression(a.IndexExpression).GetAs<int>();
+                var callSite = EvalExpression(a.CallSite).GetAs<IArrayInstanceLike>();
+                return callSite.GetElementAddress(index);
+            }
+
+            // Unreachable?
+            return null;
         }
 
         Pointer EvalAddrOfExpression(AddrOfExpression expr)
         {
-            if (expr.OperateOn is Variable varExpr)
+            var memory = LoadEffectiveAddress(expr.OperateOn);
+            return new Pointer()
             {
-                var environment = GetEnvironmentForVariable(varExpr.Resolution, varExpr.Name);
-                return new StackPointer()
-                {
-                    Environment = environment,
-                    Variable = varExpr.Resolution
-                };
-            }
-            else if (expr.OperateOn is Get)
-            {
-                var fieldNamesReversed = new List<string>();
-                ExpressionNode callSite = expr.OperateOn;
-                while (callSite is Get g)
-                {
-                    fieldNamesReversed.Add(g.FieldName.Identifier);
-                    callSite = g.CallSite;
-                }
-
-                if (callSite is Variable v)
-                {
-                    var environment = GetEnvironmentForVariable(v.Resolution, v.Name);
-                    fieldNamesReversed.Reverse();
-                    return new StructMemberPointer()
-                    {
-                        FieldNames = fieldNamesReversed,
-                        Environment = environment,
-                        Variable = v.Resolution
-                    };
-                }
-            } // TODO: addrof deref
-
-            return null;
+                Memory = memory
+            };
         }
 
         AilurusValue EvalStructInitialization(StructInitialization expr)
         {
-            var values = new Dictionary<string, AilurusValue>();
+            var values = new Dictionary<string, MemoryLocation>();
             foreach (var (fieldName, initializer) in expr.Initializers)
             {
                 var value = EvalExpression(initializer);
-                values.Add(fieldName.Identifier, value);
+                values.Add(fieldName.Identifier, new MemoryLocation() { Value = value });
             }
 
             return new StructInstance()
@@ -525,11 +507,15 @@ namespace AilurusLang.Interpreter.TreeWalker
 
             while (callSite is Pointer ptr)
             {
+                if (!ptr.IsValid)
+                {
+                    throw new RuntimeError("Attempt to deref pointer to invalid memory.", expr.SourceStart);
+                }
                 callSite = ptr.Deref();
             }
 
             var value = callSite.GetAs<StructInstance>();
-            return value.Members[expr.FieldName.Identifier];
+            return value[expr.FieldName.Identifier];
         }
 
         AilurusValue EvalCallExpression(Call call)
@@ -589,28 +575,17 @@ namespace AilurusLang.Interpreter.TreeWalker
         {
             var value = EvalExpression(newAlloc.Expr);
 
-            if (value is ArrayInstance a)
+            if (value is ArrayInstance a && newAlloc.CopyInPlace)
             {
-                return new ArrayInstance()
-                {
-                    ArrayType = a.ArrayType,
-                    Values = new List<AilurusValue>(a.Values),
-                    IsOnHeap = true,
-                    Initialized = true
-                };
+                return new ArrayInstance(a, true);
             }
             else if (value is StringInstance s)
             {
-                return new StringInstance()
-                {
-                    Value = s.Value,
-                    IsOnHeap = true,
-                    Initialized = true
-                };
+                return new StringInstance(s, true);
             }
             else
             {
-                return new HeapPointer() { Value = value.ByValue(), Initialized = true };
+                return new Pointer() { Memory = new MemoryLocation() { Value = value.ByValue() } };
             }
         }
 
@@ -619,7 +594,7 @@ namespace AilurusLang.Interpreter.TreeWalker
             var instance = value.GetAs<IArrayInstanceLike>();
             var count = instance.Count;
 
-            if (instance.IsOnHeap && !instance.Initialized)
+            if (instance.Count > 0 && instance.AccessIsValid(0))
             {
                 throw new RuntimeError("Attempted to get len of invalid ArrayLike.");
             }
@@ -631,7 +606,7 @@ namespace AilurusLang.Interpreter.TreeWalker
             var pointer = value.GetAs<Pointer>();
             if (!pointer.IsValid)
             {
-                throw new RuntimeError("Dereference of invalid pointer.", unary.SourceStart);
+                throw new RuntimeError("Attempted to dereference invalid pointer.", unary.SourceStart);
             }
             return pointer.Deref();
         }
@@ -762,6 +737,10 @@ namespace AilurusLang.Interpreter.TreeWalker
             var callSite = EvalExpression(expr.CallSite);
             while (callSite is Pointer ptr)
             {
+                if (!ptr.IsValid)
+                {
+                    throw new RuntimeError("Attempt to dereference pointer to invalid memory.", expr.FieldName);
+                }
                 callSite = ptr.Deref();
             }
 
@@ -770,11 +749,11 @@ namespace AilurusLang.Interpreter.TreeWalker
 
             if (expr.PointerAssign)
             {
-                structInstance.Members[expr.FieldName.Identifier].GetAs<Pointer>().Assign(value);
+                structInstance[expr.FieldName.Identifier].GetAs<Pointer>().Assign(value);
             }
             else
             {
-                structInstance.Members[expr.FieldName.Identifier] = value;
+                structInstance[expr.FieldName.Identifier] = value;
             }
 
             return value;

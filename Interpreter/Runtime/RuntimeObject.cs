@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using AilurusLang.DataType;
 using AilurusLang.Parsing.AST;
@@ -27,6 +28,11 @@ namespace AilurusLang.Interpreter.Runtime
         public virtual AilurusValue ByValue()
         {
             return this;
+        }
+
+        public virtual void MarkInvalid()
+        {
+
         }
     }
 
@@ -126,10 +132,56 @@ namespace AilurusLang.Interpreter.Runtime
         }
     }
 
-    public abstract class Pointer : AilurusValue
+    public class MemoryLocation : AilurusValue
     {
-        public abstract AilurusValue Deref();
-        public abstract void Assign(AilurusValue value);
+        public MemoryLocation() { }
+        public MemoryLocation(MemoryLocation m)
+        {
+            Value = m.Value;
+        }
+
+        public AilurusValue Value { get; set; }
+        public bool IsValid { get; set; } = true;
+        public bool IsOnHeap { get; set; }
+
+        public override string TypeName => "MemoryLocation";
+
+        public override bool AssertType(AilurusDataType dataType)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override AilurusValue ByValue()
+        {
+            return new MemoryLocation()
+            {
+                Value = Value.ByValue()
+            };
+        }
+
+        public override void MarkInvalid()
+        {
+            IsValid = false;
+            Value.MarkInvalid();
+        }
+    }
+
+    public class Pointer : AilurusValue
+    {
+        public MemoryLocation Memory { get; set; }
+        public AilurusValue Deref()
+        {
+            return Memory.Value;
+        }
+        public void Assign(AilurusValue value)
+        {
+            Memory.Value = value;
+        }
+
+        public override bool AssertType(AilurusDataType dataType)
+        {
+            return dataType is PointerType;
+        }
 
         public override string TypeName => "Pointer";
 
@@ -137,7 +189,7 @@ namespace AilurusLang.Interpreter.Runtime
 
         public virtual bool IsValid
         {
-            get => !IsNull;
+            get => !IsNull && Memory.IsValid;
         }
     }
 
@@ -146,147 +198,6 @@ namespace AilurusLang.Interpreter.Runtime
         public NullPointer() : base()
         {
             IsNull = true;
-        }
-
-        public override bool AssertType(AilurusDataType dataType)
-        {
-            if (dataType is PointerType)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        public override void Assign(AilurusValue value)
-        {
-            throw new NotImplementedException();
-        }
-
-        public override AilurusValue Deref()
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-    public class StackPointer : Pointer
-    {
-        public TreeWalkerEnvironment Environment { get; set; }
-        public Resolution Variable { get; set; }
-
-        public override bool IsValid
-        {
-            get
-            {
-                if (!IsNull)
-                {
-                    return Environment.IsValid;
-                }
-                return false;
-            }
-        }
-
-        public override bool AssertType(AilurusDataType dataType)
-        {
-            if (dataType is PointerType p && IsValid)
-            {
-                var variable = Environment.GetValue(Variable);
-                return variable.AssertType(p.BaseType);
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        public override AilurusValue Deref()
-        {
-            if (IsValid)
-            {
-                return Environment.GetValue(Variable);
-            }
-            else
-            {
-                return null;
-            }
-        }
-
-        public override void Assign(AilurusValue value)
-        {
-            if (IsValid)
-            {
-                Environment.SetValue(Variable, value);
-            }
-        }
-    }
-
-    public class StructMemberPointer : StackPointer
-    {
-        public List<string> FieldNames { get; set; }
-
-        private StructInstance GetBaseStructInstance()
-        {
-            var value = base.Deref();
-            StructInstance instance = null;
-            foreach (var name in FieldNames)
-            {
-                while (value is Pointer p)
-                {
-                    value = p.Deref();
-                }
-                instance = value.GetAs<StructInstance>();
-                value = instance.Members[name];
-            }
-
-            return instance;
-        }
-
-        public override void Assign(AilurusValue value)
-        {
-            var instance = GetBaseStructInstance();
-            instance.Members[FieldNames[^1]] = value;
-        }
-
-        public override AilurusValue Deref()
-        {
-            var instance = GetBaseStructInstance();
-            return instance.Members[FieldNames[^1]];
-        }
-    }
-
-    public class HeapPointer : Pointer
-    {
-        public AilurusValue Value { get; set; }
-        public bool Initialized { get; set; } = false;
-
-        public override bool IsValid
-        {
-            get => !IsNull && Initialized;
-        }
-
-        public override bool AssertType(AilurusDataType dataType)
-        {
-            if (dataType is PointerType p && IsValid)
-            {
-                return Value.AssertType(p.BaseType);
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        public override void Assign(AilurusValue value)
-        {
-            Value = value;
-            Initialized = true;
-        }
-
-        public override AilurusValue Deref()
-        {
-            return Value;
         }
     }
 
@@ -328,76 +239,91 @@ namespace AilurusLang.Interpreter.Runtime
 
         public override AilurusValue ByValue()
         {
+            var newMembers = new Dictionary<string, MemoryLocation>();
+            foreach (var kvp in Members)
+            {
+                newMembers.Add(kvp.Key, (MemoryLocation)kvp.Value.ByValue());
+            }
+
             return new StructInstance()
             {
                 StructType = StructType,
-                Members = new Dictionary<string, AilurusValue>(Members)
+                Members = newMembers
             };
         }
 
         public StructType StructType { get; set; }
-        public Dictionary<string, AilurusValue> Members { get; set; }
+        public Dictionary<string, MemoryLocation> Members { get; set; }
+
+        public AilurusValue this[string s]
+        {
+            get => Members[s].Value;
+            set => Members[s].Value = value;
+        }
+
+        public override void MarkInvalid()
+        {
+            foreach (var v in Members.Values)
+            {
+                v.MarkInvalid();
+            }
+        }
+
+        public MemoryLocation GetMemberAddress(string memberName)
+        {
+            return Members[memberName];
+        }
     }
 
     public interface IArrayInstanceLike
     {
         int Count { get; }
-
-        bool IsOnHeap { get; set; }
-        bool Initialized { get; set; }
-
         AilurusValue this[int i] { get; set; }
+        bool AccessIsValid(int i);
+        IEnumerable<AilurusValue> ValueList();
+        MemoryLocation GetElementAddress(int i);
     }
 
-    public class StringInstance : AilurusValue, IArrayInstanceLike
+    public class StringInstance : ArrayInstance
     {
-        public override string TypeName => "string";
-
-        // Maybe just store it as a char array?
-        public string Value { get; set; }
-
-        public bool IsOnHeap { get; set; }
-        public bool Initialized { get; set; }
-
-        public override bool AssertType(AilurusDataType dataType)
+        public StringInstance(string initialValue, bool isOnHeap) :
+            base(initialValue.Select(c => new DynamicValue() { Value = c }), isOnHeap)
         {
-            return dataType is StringType;
         }
 
-        public AilurusValue this[int i]
-        {
-            get => new DynamicValue() { Value = Value[i] };
-            set
-            {
-                var newString = Value.ToCharArray();
-                newString[i] = value.GetAs<char>();
-                Value = new string(newString);
-            }
-        }
-
-        public int Count => Value.Length;
+        public StringInstance(StringInstance s, bool isOnHeap) : base(s, isOnHeap) { }
 
         public override string ToString()
         {
-            return Value;
+            var charList = new List<char>();
+            foreach (var m in Values)
+            {
+                charList.Add(m.Value.GetAs<char>());
+            }
+
+            return string.Join("", charList);
         }
     }
 
     public class ArrayInstance : AilurusValue, IArrayInstanceLike
     {
+        public ArrayInstance(IEnumerable<AilurusValue> values, bool isOnHeap)
+        {
+            Values = values.Select(v => new MemoryLocation() { Value = v, IsOnHeap = isOnHeap }).ToList();
+        }
+
+        public ArrayInstance(ArrayInstance a, bool isOnHeap) : this(a.ValueList(), isOnHeap) { }
+
         public int Count => Values.Count;
 
         public AilurusValue this[int i]
         {
-            get => Values[i];
-            set => Values[i] = value;
+            get => Values[i].Value;
+            set => Values[i].Value = value;
         }
 
         public ArrayType ArrayType { get; set; }
-        public List<AilurusValue> Values { get; set; }
-
-        public bool IsOnHeap { get; set; }
-        public bool Initialized { get; set; }
+        public List<MemoryLocation> Values { get; set; }
 
         public override string TypeName => $"[{ArrayType.DataTypeName}]";
 
@@ -415,7 +341,29 @@ namespace AilurusLang.Interpreter.Runtime
 
         public override string ToString()
         {
-            return $"[{string.Join(",", Values)}]";
+            var v = Values.Select(v => v.Value);
+            return $"[{string.Join(",", v)}]";
+        }
+
+        public bool AccessIsValid(int i)
+        {
+            return i < Count && Values[i].IsValid;
+        }
+
+        public IEnumerable<AilurusValue> ValueList()
+            => Values.Select(v => v.Value);
+
+        public override void MarkInvalid()
+        {
+            foreach (var m in Values)
+            {
+                m.MarkInvalid();
+            }
+        }
+
+        public MemoryLocation GetElementAddress(int i)
+        {
+            return Values[i];
         }
     }
 }
