@@ -38,10 +38,9 @@ namespace AilurusLang.Parsing.AST
         public LetStatement() : base(StatementType.Let) { }
 
         public bool IsMutable { get; set; }
-        public Token Name { get; set; }
+        public ILValue AssignmentTarget { get; set; }
         public ExpressionNode Initializer { get; set; }
         public TypeName AssertedType { get; set; }
-        public VariableResolution Resolution { get; set; }
     }
 
     public class ExpressionStatement : StatementNode
@@ -120,13 +119,13 @@ namespace AilurusLang.Parsing.AST
     {
         public ForEachStatement() : base(StatementType.ForEach) { }
 
-        public Token Name { get; set; }
+        public ILValue AssignmentTarget { get; set; }
         public TypeName? AssertedTypeName { get; set; }
         public ExpressionNode IteratedValue { get; set; }
         public BlockStatement Body { get; set; }
         public bool IsMutable { get; set; }
 
-        public VariableResolution Resolution { get; set; }
+        // Resolved Members
         public bool IterateOverReference { get; set; }
     }
 

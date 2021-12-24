@@ -25,6 +25,7 @@ namespace AilurusLang.Parsing.AST
         ArraySetExpression,
         New,
         VarCast,
+        Tuple,
     }
 
     public abstract class ExpressionNode : ASTNode
@@ -88,10 +89,14 @@ namespace AilurusLang.Parsing.AST
         public ExpressionNode FalseExpr { get; set; }
     }
 
-    public class Variable : ExpressionNode
+    public interface ILValue
+    {
+        Token SourceStart { get; set; }
+    }
+
+    public class Variable : ExpressionNode, ILValue
     {
         public Variable() : base(ExpressionType.Variable) { }
-        public Variable(ExpressionType type) : base(type) { }
         public Token Name { get; set; }
         public Resolution Resolution { get; set; }
     }
@@ -185,5 +190,12 @@ namespace AilurusLang.Parsing.AST
 
         // Should be array literal or string constant
         public ExpressionNode Expr { get; set; }
+    }
+
+    public class TupleExpression : ExpressionNode, ILValue
+    {
+        public TupleExpression() : base(ExpressionType.Tuple) { }
+
+        public List<ExpressionNode> Elements { get; set; }
     }
 }

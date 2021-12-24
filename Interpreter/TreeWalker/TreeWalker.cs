@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using AilurusLang.DataType;
 using AilurusLang.Interpreter.Runtime;
 using AilurusLang.Interpreter.TreeWalker.Evaluators;
@@ -194,8 +195,6 @@ namespace AilurusLang.Interpreter.TreeWalker
 
             PushBlockEnvironment();
 
-            var env = GetEnvironmentForVariableResolution(forEach.Resolution);
-
             for (var i = 0; i < iteratedValue.Count; i++)
             {
                 if (!iteratedValue.AccessIsValid(i))
@@ -203,14 +202,35 @@ namespace AilurusLang.Interpreter.TreeWalker
                     throw new RuntimeError("Attempt to access array like with invalid memory.", forEach.IteratedValue.SourceStart);
                 }
 
-                if (forEach.IterateOverReference)
+                if (forEach.AssignmentTarget is TupleExpression tupleVariables)
                 {
-                    var ptr = new Pointer() { Memory = iteratedValue.GetElementAddress(i) };
-                    env.SetValue(forEach.Resolution, ptr);
+                    if (forEach.IterateOverReference)
+                    {
+                        throw new NotImplementedException();
+                    }
+
+                    var tupleValue = iteratedValue[i].ByValue().GetAs<TupleInstance>();
+                    for (var j = 0; j < tupleVariables.Elements.Count; j++)
+                    {
+                        var variable = tupleVariables.Elements[j] as Variable;
+                        var value = tupleValue[j];
+                        var env = GetEnvironmentForVariable(variable.Resolution, variable.Name);
+                        env.SetValue(variable.Resolution, value);
+                    }
                 }
-                else
+                else if (forEach.AssignmentTarget is Variable variable)
                 {
-                    env.SetValue(forEach.Resolution, iteratedValue[i]);
+                    ;
+                    var env = GetEnvironmentForVariable(variable.Resolution, variable.Name);
+                    if (forEach.IterateOverReference)
+                    {
+                        var ptr = new Pointer() { Memory = iteratedValue.GetElementAddress(i) };
+                        env.SetValue(variable.Resolution, ptr);
+                    }
+                    else
+                    {
+                        env.SetValue(variable.Resolution, iteratedValue[i].ByValue());
+                    }
                 }
 
                 EvalBlockStatement(forEach.Body);
@@ -347,9 +367,24 @@ namespace AilurusLang.Interpreter.TreeWalker
                 initializer = EvalExpression(stmt.Initializer);
             }
 
-            var env = GetEnvironmentForVariableResolution(stmt.Resolution);
-            env.SetValue(stmt.Resolution, initializer);
-
+            if (stmt.AssignmentTarget is TupleExpression tupleVariables)
+            {
+                var tupleInitializer = initializer.GetAs<TupleInstance>();
+                for (var i = 0; i < tupleVariables.Elements.Count; i++)
+                {
+                    var variable = tupleVariables.Elements[i] as Variable;
+                    var value = tupleInitializer[i];
+                    var resolution = variable.Resolution as VariableResolution;
+                    var env = GetEnvironmentForVariableResolution(resolution);
+                    env.SetValue(resolution, value);
+                }
+            }
+            else if (stmt.AssignmentTarget is Variable variable)
+            {
+                var resolution = variable.Resolution as VariableResolution;
+                var env = GetEnvironmentForVariableResolution(resolution);
+                env.SetValue(resolution, initializer);
+            }
         }
 
         void EvalBlockStatement(BlockStatement block)
@@ -387,8 +422,16 @@ namespace AilurusLang.Interpreter.TreeWalker
                 ExpressionType.ArraySetExpression => EvalArraySet((ArraySetExpression)expr),
                 ExpressionType.New => EvalNewAlloc((NewAlloc)expr),
                 ExpressionType.VarCast => EvalVarCast((VarCast)expr),
+                ExpressionType.Tuple => EvalTupleLiteral((TupleExpression)expr),
                 _ => throw new NotImplementedException(),
             };
+        }
+
+        AilurusValue EvalTupleLiteral(TupleExpression expr)
+        {
+            var elements = expr.Elements.Select(e => EvalExpression(e));
+
+            return new TupleInstance(elements, false);
         }
 
         AilurusValue EvalVarCast(VarCast expr)

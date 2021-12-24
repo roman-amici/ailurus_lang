@@ -6,7 +6,7 @@
     - ~~Add return semantics~~
  3. ~~Add Module Variable Declarations~~
  4. ~~Add Struct Declarations~~
-   ~~-- Add struct field reference syntax and semantics~~
+   - ~~Add struct field reference syntax and semantics~~
  5. ~~Add Type alias Declarations~~
  6. Add Module resolution
  7. ~~Pointer semantics (without arithmetic)~~.
@@ -21,6 +21,7 @@
  16. ~~Address of array elements~~
   - ~~Address of array elements in foreach loop~~
  17. Tuples
+ 18. Match Statement
 
 ## Front End Cleanup
 1. Synchronization
@@ -50,6 +51,11 @@
 
 ## New Features
  1. Basic generics
+ 2. Lambdas
+ 3. Question Mark Operator
+ 4. Try+Finally or Defer
+ 5. Some sort of conditional compilation
+ 6. Proc macros?
 
 ## Infrastructure
  1. VSCode Syntax highlighting

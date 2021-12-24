@@ -305,6 +305,24 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     };
                 }
             }
+            else if (typeName is TupleTypeName t)
+            {
+                var elementTypes =
+                    t.ElementTypeNames
+                    .Select(t => ResolveTypeName(t)).ToList();
+
+                if (elementTypes.Find(e => e is ErrorType) != null)
+                {
+                    return ErrorType.Instance;
+                }
+                else
+                {
+                    return new TupleType()
+                    {
+                        MemberTypes = elementTypes
+                    };
+                }
+            }
             else if (typeName is BaseTypeName b)
             {
                 var type = LookupTypeByName(b.Name.Lexeme);
@@ -774,9 +792,24 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     return ResolveNew((NewAlloc)expr);
                 case ExpressionType.VarCast:
                     return ResolveVarCast((VarCast)expr);
+                case ExpressionType.Tuple:
+                    return ResolveTupleLiteral((Parsing.AST.TupleExpression)expr);
                 default:
                     throw new NotImplementedException();
             }
+        }
+
+        AilurusDataType ResolveTupleLiteral(Parsing.AST.TupleExpression tuple)
+        {
+            var types = tuple.Elements.Select(e => ResolveExpression(e)).ToList();
+
+            var tupleType = new TupleType()
+            {
+                MemberTypes = types
+            };
+            tuple.DataType = tupleType;
+
+            return tuple.DataType;
         }
 
         AilurusDataType ResolveVarCast(VarCast expr)
@@ -1362,46 +1395,120 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         #endregion
 
         #region Resolve Statements
-        void ResolveLet(LetStatement let, bool moduleVariable = false)
+
+        AilurusDataType GetAssertedType(TypeName assertedTypeName)
         {
-            if (!IsValidVariableName(let.Name.Lexeme))
-            {
-                Error($"Variable cannot have name '{let.Name.Lexeme}' since it is reserved.", let.Name);
-                return;
-            }
-
-            if (!CanDeclareName(let.Name.Lexeme))
-            {
-                Error($"Variable with name '{let.Name.Lexeme}' already exists in this scope.", let.SourceStart);
-                return;
-            }
-
             AilurusDataType assertedType = null;
-            AilurusDataType initializerType = null;
-            if (let.AssertedType != null)
+            if (assertedTypeName != null)
             {
-                assertedType = ResolveTypeName(let.AssertedType);
+                assertedType = ResolveTypeName(assertedTypeName);
                 if (assertedType is ErrorType)
                 {
-                    Error($"Asserted type '{let.AssertedType.Name.Lexeme}' could not be found.", let.AssertedType.Name);
+                    Error($"Asserted type '{assertedTypeName.Name.Lexeme}' could not be found.", assertedTypeName.Name);
                 }
             }
+
+            return assertedType;
+        }
+
+        void CheckModuleVariableInitialization(ExpressionNode initializer, Token sourceStart)
+        {
+            if (initializer != null)
+            {
+                if (!IsStaticExpression(initializer))
+                {
+                    Error($"Module variables must have a static initialization.", initializer.SourceStart);
+                }
+            }
+            else
+            {
+                Error($"Module variables must be initialized.", sourceStart);
+            }
+        }
+
+        void InheritVariability(AilurusDataType assertedType, AilurusDataType initializerType, ExpressionNode initializer)
+        {
+            // Inherit variability from asserted type rather than initializer type.
+            if (assertedType is IArrayLikeType a &&
+                a.IsVariable)
+            {
+                if (initializerType is IArrayLikeType aa)
+                {
+                    if (IsInitializerExpression(initializer))
+                    {
+                        aa.IsVariable = a.IsVariable;
+                    }
+                }
+            }
+        }
+
+        bool DeclareVariable(Variable variable, AilurusDataType variableType, bool isMutable, bool initialized)
+        {
+            if (!IsValidVariableName(variable.Name.Lexeme))
+            {
+                Error($"Variable cannot have name '{variable.Name.Lexeme}' since it is reserved.", variable.Name);
+                return false;
+            }
+
+            if (!CanDeclareName(variable.Name.Lexeme))
+            {
+                Error($"Variable with name '{variable.Name.Lexeme}' already exists in this scope.", variable.Name);
+                return false;
+            }
+
+            var declaration = AddVariableToCurrentScope(
+                variable.Name,
+                variableType,
+                isMutable,
+                initialized);
+
+            variable.Resolution = declaration;
+            return true;
+        }
+
+        bool DeclareLValue(ILValue assignmentTarget, AilurusDataType assertedType, bool isMutable, bool initialized)
+        {
+            if (assignmentTarget is TupleExpression tuple)
+            {
+                var assertedTupleType = assertedType as TupleType;
+
+                if (tuple.Elements.Count != assertedTupleType.MemberTypes.Count)
+                {
+                    Error($"Asserted type {assertedTupleType.DataTypeName} does not match shape of target expression.", tuple.SourceStart);
+                    return false;
+                }
+
+                var success = true;
+                for (var i = 0; i < tuple.Elements.Count; i++)
+                {
+
+                    var variable = tuple.Elements[i] as Variable;
+                    var variableType = assertedTupleType.MemberTypes[i];
+                    success = success && DeclareVariable(variable, variableType, isMutable, initialized);
+                }
+
+                return success;
+            }
+            else if (assignmentTarget is Variable variable)
+            {
+                return DeclareVariable(variable, assertedType, isMutable, initialized);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        void ResolveLet(LetStatement let, bool moduleVariable = false)
+        {
+            var assertedType = GetAssertedType(let.AssertedType);
+            AilurusDataType initializerType = null;
 
             var initialized = let.Initializer != null;
 
             if (moduleVariable)
             {
-                if (initialized)
-                {
-                    if (!IsStaticExpression(let.Initializer))
-                    {
-                        Error($"Module variables must have a static initialization.", let.Initializer.SourceStart);
-                    }
-                }
-                else
-                {
-                    Error($"Module variables must be initialized.", let.SourceStart);
-                }
+                CheckModuleVariableInitialization(let.Initializer, let.SourceStart);
             }
 
             if (initialized)
@@ -1417,37 +1524,17 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
             if (assertedType == null)
             {
-                Error($"Could not infer type for variable '{let.Name.Lexeme}'", let.Name);
+                Error($"Could not infer type for assignment.", let.SourceStart);
                 return;
             }
 
-            // Inherit variability from asserted type rather than initializer type.
-            if (assertedType is IArrayLikeType a &&
-                a.IsVariable)
-            {
-                if (initializerType is IArrayLikeType aa)
-                {
-                    if (IsInitializerExpression(let.Initializer))
-                    {
-                        aa.IsVariable = a.IsVariable;
-                    }
-                }
-            }
-
-            // TODO: Allow pointer assignments in let expressions
             if (!CanAssignTo(assertedType, initializerType, false, out string errorMessage))
             {
                 Error(errorMessage, let.SourceStart);
                 return;
             }
 
-            var declaration = AddVariableToCurrentScope(
-                let.Name,
-                assertedType,
-                let.IsMutable,
-                initialized);
-
-            let.Resolution = declaration;
+            DeclareLValue(let.AssignmentTarget, assertedType, let.IsMutable, initialized);
         }
 
         void ResolvePrint(PrintStatement print)
@@ -1545,11 +1632,6 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         {
             BeginScope();
 
-            if (!CanDeclareName(forEach.Name.Identifier))
-            {
-                Error($"Variable with name '{forEach.Name.Lexeme}' already exists in this scope.", forEach.Name);
-            }
-
             var iteratorType = ResolveExpression(forEach.IteratedValue);
 
             AilurusDataType elementType = ErrorType.Instance;
@@ -1586,16 +1668,10 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             if (!canAssign)
             {
                 // Use the first error message since its probably closer to what they wanted
-                Error(errorMessage, forEach.Name);
+                Error(errorMessage, forEach.AssignmentTarget.SourceStart);
             }
 
-            var declaration = AddVariableToCurrentScope(
-                forEach.Name,
-                assertedType,
-                forEach.IsMutable,
-                true);
-
-            forEach.Resolution = declaration;
+            DeclareLValue(forEach.AssignmentTarget, assertedType, forEach.IsMutable, true);
 
             ResolveStatement(forEach.Body);
 

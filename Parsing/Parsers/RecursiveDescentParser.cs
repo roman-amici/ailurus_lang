@@ -182,12 +182,22 @@ namespace AilurusLang.Parsing.Parsers
                 };
             }
 
-            // Grouping
+            // Grouping or Tuple
             if (Match(TokenType.LeftParen))
             {
+                var paren = Previous;
                 var inner = Expression();
-                Consume(TokenType.RightParen, "Unbalanced parenthesis.");
-                return inner;
+
+                if (Match(TokenType.Comma))
+                {
+                    return TupleLiteral(paren, inner);
+                }
+                else
+                {
+                    // Grouping
+                    Consume(TokenType.RightParen, "Unbalanced parenthesis.");
+                    return inner;
+                }
             }
 
             if (Match(TokenType.Struct))
@@ -216,8 +226,31 @@ namespace AilurusLang.Parsing.Parsers
                 return ArrayLiteral();
             }
 
-            RaiseError(Peek, "Unrecognized token");
+            RaiseError(Peek, "Unexpected token");
             return null;
+        }
+
+        AST.TupleExpression TupleLiteral(Token openParen, ExpressionNode firstElement)
+        {
+            var elements = new List<ExpressionNode>() { firstElement };
+
+            if (Match(TokenType.RightParen))
+            {
+                RaiseError(Previous, "Expected expression after ','.");
+            }
+
+            do
+            {
+                elements.Add(Expression());
+            } while (Match(TokenType.Comma));
+
+            Consume(TokenType.RightParen, "Expected ')' for tuple.");
+
+            return new AST.TupleExpression()
+            {
+                SourceStart = openParen,
+                Elements = elements
+            };
         }
 
         ArrayLiteral ArrayLiteral()
@@ -687,8 +720,52 @@ namespace AilurusLang.Parsing.Parsers
             return Assignment();
         }
 
-        #region Declarations
+        #region LValue
 
+        public ILValue LValue()
+        {
+            // Tuple
+            if (Match(TokenType.LeftParen))
+            {
+                var lParen = Previous;
+                var elements = new List<ExpressionNode>();
+                do
+                {
+                    var name = Consume(TokenType.Identifier, "Expected identifier.");
+                    elements.Add(new Variable()
+                    {
+                        Name = name,
+                        SourceStart = name
+                    });
+                } while (Match(TokenType.Comma));
+
+                if (elements.Count < 2)
+                {
+                    RaiseError(lParen, "Tuple type requires at lease two elements.");
+                }
+
+                Consume(TokenType.RightParen, "Expected ')' after tuple.");
+
+                return new TupleExpression()
+                {
+                    Elements = elements
+                };
+            }
+            else
+            {
+                var name = Consume(TokenType.Identifier, "Expected name after 'let'");
+
+                return new Variable()
+                {
+                    Name = name,
+                    SourceStart = name
+                };
+            }
+        }
+
+        #endregion
+
+        #region Declarations
 
         Declaration Declaration()
         {
@@ -843,6 +920,26 @@ namespace AilurusLang.Parsing.Parsers
                     IsVariable = arrayModifier
                 };
             }
+            else if (Match(TokenType.LeftParen))
+            {
+                var parenOpen = Previous;
+                var tupleTypes = new List<TypeName>();
+                do
+                {
+                    var innerTypeName = TypeName();
+                    tupleTypes.Add(innerTypeName);
+                } while (Match(TokenType.Comma));
+
+                if (tupleTypes.Count < 2)
+                {
+                    RaiseError(parenOpen, "Tuple type must have at least 2 elements.");
+                }
+
+                baseType = new TupleTypeName()
+                {
+                    ElementTypeNames = tupleTypes
+                };
+            }
             else
             {
                 baseType = new BaseTypeName()
@@ -930,7 +1027,7 @@ namespace AilurusLang.Parsing.Parsers
                 isMutable = true;
             }
 
-            var name = Consume(TokenType.Identifier, "Expected name after 'let'");
+            var assignmentTarget = LValue();
 
             TypeName assertedType = null;
             if (Match(TokenType.Colon))
@@ -954,7 +1051,7 @@ namespace AilurusLang.Parsing.Parsers
 
             return new ForEachStatement()
             {
-                Name = name,
+                AssignmentTarget = assignmentTarget,
                 AssertedTypeName = assertedType,
                 IteratedValue = iteratedValue,
                 Body = body,
@@ -989,7 +1086,7 @@ namespace AilurusLang.Parsing.Parsers
                 isMutable = true;
             }
 
-            var name = Consume(TokenType.Identifier, "Expected name after 'let'");
+            var assignmentTarget = LValue();
 
             if (Match(TokenType.Colon))
             {
@@ -1003,14 +1100,14 @@ namespace AilurusLang.Parsing.Parsers
 
             if (initializer == null && assertedType == null)
             {
-                RaiseError(name, "Variable delaration must have either an explicit type or an assignment statement.");
+                RaiseError(assignmentTarget.SourceStart, "Variable delaration must have either an explicit type or an assignment statement.");
             }
 
             Consume(TokenType.Semicolon, "Expected ';' after 'let' statement");
 
             return new LetStatement()
             {
-                Name = name,
+                AssignmentTarget = assignmentTarget,
                 SourceStart = letToken,
                 Initializer = initializer,
                 AssertedType = assertedType,

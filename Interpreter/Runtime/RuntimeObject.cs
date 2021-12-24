@@ -366,4 +366,35 @@ namespace AilurusLang.Interpreter.Runtime
             return Values[i];
         }
     }
+
+    public class TupleInstance : AilurusValue
+    {
+        public TupleInstance(IEnumerable<AilurusValue> values, bool isOnHeap)
+        {
+            Elements = values
+                .Select(v => new MemoryLocation() { Value = v, IsOnHeap = isOnHeap })
+                .ToList();
+        }
+
+        public List<MemoryLocation> Elements { get; set; }
+
+        public override string TypeName => "Tuple";
+
+        public override string ToString()
+        {
+            var inner = string.Join(',', Elements);
+            return $"({inner})";
+        }
+
+        public override bool AssertType(AilurusDataType dataType)
+        {
+            return dataType is TupleType;
+        }
+
+        public AilurusValue this[int i] => Elements[i].Value;
+
+        public MemoryLocation GetElementAddress(int i) => Elements[i];
+
+        public override void MarkInvalid() => Elements.ForEach(v => v.MarkInvalid());
+    }
 }

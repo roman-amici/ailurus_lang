@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using AilurusLang.Scanning;
 
 namespace AilurusLang.Parsing.AST
@@ -21,6 +22,11 @@ namespace AilurusLang.Parsing.AST
         }
         public TypeName BaseTypeName { get; set; }
         public bool IsVariable { get; set; }
+    }
+
+    public class TupleTypeName : TypeName
+    {
+        public List<TypeName> ElementTypeNames { get; set; }
     }
 
     public class PointerTypeName : TypeName

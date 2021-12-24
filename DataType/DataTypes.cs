@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using AilurusLang.Parsing.AST;
 
 namespace AilurusLang.DataType
@@ -159,5 +160,18 @@ namespace AilurusLang.DataType
     {
         public static readonly ErrorType Instance = new ErrorType();
         public override string DataTypeName => "Error";
+    }
+
+    public class TupleType : AilurusDataType
+    {
+        public List<AilurusDataType> MemberTypes { get; set; }
+        public override string DataTypeName
+        {
+            get
+            {
+                var inner = string.Join(',', MemberTypes.Select(d => d.DataTypeName));
+                return $"({inner})";
+            }
+        }
     }
 }
