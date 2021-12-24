@@ -783,11 +783,11 @@ namespace AilurusLang.Interpreter.TreeWalker
         {
             if (resolution is VariableResolution v)
             {
-                if (!v.IsInitialized)
-                {
-                    // TODO: Reject statically
-                    throw new RuntimeError("Referenced an uninitialized variable", Name);
-                }
+                // if (!v.IsInitialized)
+                // {
+                //     // TODO: Reject statically
+                //     throw new RuntimeError("Referenced an uninitialized variable", Name);
+                // }
                 return GetEnvironmentForVariableResolution(v);
             }
             else if (resolution is FunctionResolution f)

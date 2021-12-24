@@ -839,10 +839,23 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
         }
 
+        AilurusDataType ResolveTupleAssignmentTarget(TupleExpression tuple)
+        {
+            foreach (var element in tuple.Elements)
+            {
+                if (!IsAssignmentTarget(element))
+                {
+                    Error($"Cannot assign to '{element.ExprType}'.", element.SourceStart);
+                }
+            }
+
+            return ResolveTupleLiteral(tuple);
+        }
+
         AilurusDataType ResolveTupleDestructure(TupleDestructure destructure)
         {
             var valueType = ResolveExpression(destructure.Value);
-            var tupleType = ResolveExpression(destructure.AssignmentTarget);
+            var tupleType = ResolveTupleAssignmentTarget(destructure.AssignmentTarget);
 
             destructure.DataType = tupleType;
 
@@ -851,14 +864,6 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 if (!CanAssignTo(tupleType, valueTupleType, false, out string errorMessage))
                 {
                     Error(errorMessage, destructure.SourceStart);
-                }
-
-                foreach (var element in destructure.AssignmentTarget.Elements)
-                {
-                    if (!IsAssignmentTarget(element))
-                    {
-                        Error($"Cannot assign to '{element.ExprType}'.", element.SourceStart);
-                    }
                 }
             }
             else
@@ -1213,10 +1218,6 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             expr.Resolution = resolution;
             if (resolution is VariableResolution v)
             {
-                if (!v.IsInitialized)
-                {
-                    Error($"Variable '{expr.Name.Lexeme}' referenced before assignment.", expr.Name);
-                }
                 expr.DataType = v.DataType;
             }
             else if (resolution is FunctionResolution f)
