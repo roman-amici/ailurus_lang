@@ -426,6 +426,22 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 return (a1.IsVariable == a2.IsVariable)
                     && TypesAreEqual(a1.ElementType, a2.ElementType);
             }
+            else if (t1 is TupleType tuple1 && t2 is TupleType tuple2)
+            {
+                if (tuple1.MemberTypes.Count != tuple2.MemberTypes.Count)
+                {
+                    return false;
+                }
+
+                for (var i = 0; i < tuple1.MemberTypes.Count; i++)
+                {
+                    if (!TypesAreEqual(tuple1.MemberTypes[i], tuple2.MemberTypes[i]))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
             else if (t1 is PointerType p1 && t2 is PointerType p2)
             {
                 return p1.IsVariable == p2.IsVariable
@@ -513,6 +529,22 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 }
                 return false;
             }
+            else if (lhsType is TupleType lhsTuple && rhsType is TupleType rhsTuple)
+            {
+                if (lhsTuple.MemberTypes.Count != rhsTuple.MemberTypes.Count)
+                {
+                    return false;
+                }
+
+                for (var i = 0; i < lhsTuple.MemberTypes.Count; i++)
+                {
+                    if (!CanAssignToInner(lhsTuple.MemberTypes[i], rhsTuple.MemberTypes[i], out errorMessage))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
             else if (lhsType is NumericType lhsNumeric && rhsType is NumericType rhsNumeric)
             {
                 return CanCoerceNumericType(lhsNumeric, rhsNumeric);
@@ -539,7 +571,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             errorMessage = $"Cannot assign value of type {rhsType.DataTypeName} to value of type {lhsType.DataTypeName}.";
             var canAssign = CanAssignToInner(lhsType, rhsType, out string newErrorMessage);
 
-            if (string.IsNullOrEmpty(newErrorMessage))
+            if (!string.IsNullOrEmpty(newErrorMessage))
             {
                 errorMessage = newErrorMessage;
             }
@@ -753,6 +785,12 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 return false;
             }
         }
+
+        bool IsAssignmentTarget(ExpressionNode expr)
+        {
+            // TODO: support nested destructuring
+            return expr is Variable || expr is ArrayIndex || expr is Get;
+        }
         #endregion
 
         AilurusDataType ResolveExpression(ExpressionNode expr)
@@ -793,13 +831,45 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 case ExpressionType.VarCast:
                     return ResolveVarCast((VarCast)expr);
                 case ExpressionType.Tuple:
-                    return ResolveTupleLiteral((Parsing.AST.TupleExpression)expr);
+                    return ResolveTupleLiteral((TupleExpression)expr);
+                case ExpressionType.TupleDestructure:
+                    return ResolveTupleDestructure((TupleDestructure)expr);
                 default:
                     throw new NotImplementedException();
             }
         }
 
-        AilurusDataType ResolveTupleLiteral(Parsing.AST.TupleExpression tuple)
+        AilurusDataType ResolveTupleDestructure(TupleDestructure destructure)
+        {
+            var valueType = ResolveExpression(destructure.Value);
+            var tupleType = ResolveExpression(destructure.AssignmentTarget);
+
+            destructure.DataType = tupleType;
+
+            if (valueType is TupleType valueTupleType)
+            {
+                if (!CanAssignTo(tupleType, valueTupleType, false, out string errorMessage))
+                {
+                    Error(errorMessage, destructure.SourceStart);
+                }
+
+                foreach (var element in destructure.AssignmentTarget.Elements)
+                {
+                    if (!IsAssignmentTarget(element))
+                    {
+                        Error($"Cannot assign to '{element.ExprType}'.", element.SourceStart);
+                    }
+                }
+            }
+            else
+            {
+                Error($"Cannot destructure type '{valueType.DataTypeName}'.", destructure.Value.SourceStart);
+            }
+
+            return destructure.DataType;
+        }
+
+        AilurusDataType ResolveTupleLiteral(TupleExpression tuple)
         {
             var types = tuple.Elements.Select(e => ResolveExpression(e)).ToList();
 
@@ -1007,7 +1077,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 Error($"Expected struct type but found type {type.DataTypeName}.", expr.StructName);
             }
 
-            return type;
+            return expr.DataType;
         }
 
         AilurusDataType ResolveFieldReference(IFieldAccessor expr, out StructType innerStruct)
@@ -1041,6 +1111,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         {
             var valueType = ResolveExpression(expr.Value);
             var fieldType = ResolveFieldReference(expr, out StructType structType);
+            expr.DataType = fieldType;
             if (structType != null)
             {
                 if (!CanAssignTo(fieldType, valueType, expr.PointerAssign, out string errorMessage))
@@ -1049,12 +1120,13 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 }
             }
 
-            return fieldType;
+            return expr.DataType;
         }
 
         AilurusDataType ResolveGet(Get expr)
         {
-            return ResolveFieldReference(expr, out StructType _);
+            expr.DataType = ResolveFieldReference(expr, out StructType _);
+            return expr.DataType;
         }
 
         AilurusDataType ResolveCall(Call call)
@@ -1091,7 +1163,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 }
             }
 
-            return returnType;
+            call.DataType = returnType;
+            return call.DataType;
         }
 
         AilurusDataType ResolveAssign(Assign expr)
@@ -1123,7 +1196,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
 
             expr.DataType = assignment;
-            return assignment;
+            return expr.DataType;
         }
 
         AilurusDataType ResolveVariable(Variable expr)
@@ -1134,7 +1207,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             if (resolution == null)
             {
                 Error($"No variable was found with name {expr.Name.Lexeme}", expr.SourceStart);
-                return ErrorType.Instance;
+                return expr.DataType;
             }
 
             expr.Resolution = resolution;
@@ -1151,7 +1224,6 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 expr.DataType = f.Declaration.DataType;
             }
 
-            // Unreachable
             return expr.DataType;
         }
 
@@ -1520,6 +1592,10 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             {
                 // Type inference
                 assertedType = initializerType;
+            }
+            else if (initializerType == null)
+            {
+                initializerType = assertedType;
             }
 
             if (assertedType == null)

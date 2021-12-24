@@ -423,8 +423,43 @@ namespace AilurusLang.Interpreter.TreeWalker
                 ExpressionType.New => EvalNewAlloc((NewAlloc)expr),
                 ExpressionType.VarCast => EvalVarCast((VarCast)expr),
                 ExpressionType.Tuple => EvalTupleLiteral((TupleExpression)expr),
+                ExpressionType.TupleDestructure => EvalTupleDestructure((TupleDestructure)expr),
                 _ => throw new NotImplementedException(),
             };
+        }
+
+        AilurusValue EvalTupleDestructure(TupleDestructure destructure)
+        {
+            var value = EvalExpression(destructure.Value).GetAs<TupleInstance>();
+
+            var targetElements = destructure.AssignmentTarget.Elements;
+            for (int i = 0; i < targetElements.Count; i++)
+            {
+                var targetElement = targetElements[i];
+                var valueElement = value[i].ByValue();
+
+                if (targetElement is Variable variable)
+                {
+                    var env = GetEnvironmentForVariable(variable.Resolution, variable.Name);
+                    env.SetValue(variable.Resolution, valueElement);
+                }
+                else if (targetElement is Get get)
+                {
+                    var callSite = EvalExpression(get.CallSite).GetAs<StructInstance>();
+                    callSite[get.FieldName.Identifier] = valueElement;
+                }
+                else if (targetElement is ArrayIndex arrayIndex)
+                {
+                    var array = EvalExpression(arrayIndex.CallSite).GetAs<IArrayInstanceLike>();
+                    var index = EvalExpression(arrayIndex.IndexExpression).GetAs<int>();
+
+                    CheckArrayIndex(index, array, arrayIndex.SourceStart);
+
+                    array[index] = valueElement;
+                }
+            }
+
+            return value;
         }
 
         AilurusValue EvalTupleLiteral(TupleExpression expr)
@@ -440,21 +475,26 @@ namespace AilurusLang.Interpreter.TreeWalker
             return EvalExpression(expr.Expr);
         }
 
+        void CheckArrayIndex(int index, IArrayInstanceLike array, Token sourceStart)
+        {
+            if (index >= array.Count)
+            {
+                throw new RuntimeError("Array index out of bounds", sourceStart);
+            }
+
+            if (!array.AccessIsValid(index))
+            {
+                throw new RuntimeError("Attempt to access array which is not initialized.", sourceStart);
+            }
+        }
+
         AilurusValue EvalArraySet(ArraySetExpression expr)
         {
             var value = EvalExpression(expr.Value);
             var array = EvalExpression(expr.ArrayIndex.CallSite).GetAs<IArrayInstanceLike>();
             var index = EvalExpression(expr.ArrayIndex.IndexExpression).GetAs<int>();
 
-            if (index >= array.Count)
-            {
-                throw new RuntimeError("Array index out of bounds", expr.SourceStart);
-            }
-
-            if (!array.AccessIsValid(index))
-            {
-                throw new RuntimeError("Attempt to access array which is not initialized.", expr.ArrayIndex.CallSite.SourceStart);
-            }
+            CheckArrayIndex(index, array, expr.SourceStart);
 
             array[index] = value;
 

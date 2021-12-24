@@ -684,6 +684,20 @@ namespace AilurusLang.Parsing.Parsers
                         PointerAssign = pointerAssignment
                     };
                 }
+                else if (expr is TupleExpression tuple)
+                {
+                    if (pointerAssignment)
+                    {
+                        RaiseError(assignmentToken, "Pointer assignment is not supported on tuple destructuring.");
+                    }
+
+                    return new TupleDestructure()
+                    {
+                        AssignmentTarget = tuple,
+                        Value = rvalue,
+                        SourceStart = assignmentToken
+                    };
+                }
                 else if (expr is Get g)
                 {
                     return new SetExpression()

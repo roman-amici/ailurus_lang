@@ -33,6 +33,8 @@
 4. Spans for error handling (rather than just columns)
 5. Different IR for parser output and resolver output
  - Or at least split the properties better
+6. Remove switching on node enum. Do it all with pattern matching.
+7. Lvalue / Rvalue distinction instead of multiple assignment expressions for each lhs.
 
 ## Standard Library
  1. Build minimal C-like standard library

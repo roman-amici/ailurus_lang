@@ -26,6 +26,7 @@ namespace AilurusLang.Parsing.AST
         New,
         VarCast,
         Tuple,
+        TupleDestructure,
     }
 
     public abstract class ExpressionNode : ASTNode
@@ -197,5 +198,13 @@ namespace AilurusLang.Parsing.AST
         public TupleExpression() : base(ExpressionType.Tuple) { }
 
         public List<ExpressionNode> Elements { get; set; }
+    }
+
+    public class TupleDestructure : ExpressionNode
+    {
+        public TupleDestructure() : base(ExpressionType.TupleDestructure) { }
+
+        public TupleExpression AssignmentTarget { get; set; }
+        public ExpressionNode Value { get; set; }
     }
 }
