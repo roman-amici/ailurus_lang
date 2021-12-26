@@ -10,6 +10,10 @@ namespace AilurusLang.Parsing.AST
         {
             Name = new List<Token>() { name };
         }
+        public QualifiedName(QualifiedName baseName, Token newName)
+        {
+            Name = new List<Token>(baseName.Name) { newName };
+        }
 
         public List<Token> Name { get; set; }
 

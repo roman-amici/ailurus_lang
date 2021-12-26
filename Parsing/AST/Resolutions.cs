@@ -2,7 +2,10 @@ using AilurusLang.DataType;
 
 namespace AilurusLang.Parsing.AST
 {
-    public abstract class Resolution { }
+    public abstract class Resolution
+    {
+        public virtual bool IsExported { get; set; }
+    }
 
     public class VariableResolution : Resolution
     {
@@ -15,6 +18,7 @@ namespace AilurusLang.Parsing.AST
 
     public class FunctionResolution : Resolution
     {
+        public override bool IsExported => Declaration.IsExported;
         public FunctionDeclaration Declaration { get; set; }
     }
 }

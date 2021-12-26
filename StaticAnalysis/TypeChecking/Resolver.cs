@@ -26,14 +26,15 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         public bool HadError { get; set; }
 
-        public void Reset()
+        public bool PlaceholdersResolved { get; set; }
+
+        void ResetScope()
         {
-            HadError = false;
             Scopes = new List<BlockScope>();
-            ModuleScope = new ModuleScope();
             IsInLoopBody = false;
             WasInLoopBody = false;
             IsInFunctionDefinition = false;
+            CurrentFunctionReturnType = null;
         }
 
         void Error(string message, Token token)
@@ -50,42 +51,17 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         #region EntryPoints
 
-        public void ResolveStatements(List<StatementNode> statements)
+        public void ResolveRootModule(Module module)
         {
-            foreach (var statement in statements)
-            {
-                ResolveStatement(statement);
-            }
-        }
+            ResolveTypeDeclarationsFirstPass(module);
+            ResolveTypeImportDeclarations(module);
+            ResolveTypeDeclarationsSecondPass(module);
+            PlaceholdersResolved = true;
 
-        public void ResolveModule(Module module)
-        {
-            //TODO: Resolve imports
-
-            foreach (var typeDeclaration in module.TypeDeclarations)
-            {
-                // In the first pass we gather type names 
-                ResolveTypeDeclarationFirstPass(typeDeclaration);
-            }
-            foreach (var typeDeclaration in module.TypeDeclarations)
-            {
-                ResolveTypeDeclarationSecondPass(typeDeclaration);
-            }
-
-            foreach (var variableDeclaration in module.VariableDeclarations)
-            {
-                ResolveModuleVariableDeclarations(variableDeclaration);
-            }
-
-            foreach (var functionDeclaration in module.FunctionDeclarations)
-            {
-                ResolveFunctionDeclarationFirstPass(functionDeclaration);
-            }
-            foreach (var functionDeclaration in module.FunctionDeclarations)
-            {
-                ResolveFunctionDeclarationSecondPass(functionDeclaration);
-            }
-
+            ResolveVariableDeclarations(module); // TODO: add a second pass for constexpr
+            ResolveFunctionDeclarationsFirstPass(module);
+            ResolveFunctionVariableImportDeclarations(module);
+            ResolveFunctionDeclarationsSecondPass(module);
         }
 
         #endregion
@@ -119,6 +95,25 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         #endregion
 
         #region Scope Management
+        ModuleScope EnterModuleScope(Module submodule)
+        {
+            var oldModuleScope = ModuleScope;
+            ResetScope();
+            if (!oldModuleScope.SubmoduleScopes.ContainsKey(submodule.ModuleName))
+            {
+                oldModuleScope.SubmoduleScopes[submodule.ModuleName] = new ModuleScope();
+            }
+            ModuleScope = oldModuleScope.SubmoduleScopes[submodule.ModuleName];
+
+            return oldModuleScope;
+        }
+
+        void ExitModuleScope(ModuleScope oldModuleScope)
+        {
+            ResetScope();
+            ModuleScope = oldModuleScope;
+        }
+
         void BeginScope()
         {
             Scopes.Add(new BlockScope());
@@ -165,7 +160,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         public Resolution FindVariableDefinition(QualifiedName name)
         {
             // TODO: Handle module resolution
-            var concreteName = name.Name[^1].Lexeme;
+            var concreteName = name.ConcreteName.Identifier;
 
             foreach (var scope in Scopes)
             {
@@ -175,44 +170,84 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 }
             }
 
-            if (ModuleScope.VariableResolutions.ContainsKey(concreteName))
+            var moduleScope = LookupModuleScope(name);
+            if (moduleScope == null)
             {
-                return ModuleScope.VariableResolutions[concreteName];
+                return null;
             }
 
-            if (ModuleScope.FunctionResolutions.ContainsKey(concreteName))
+            if (moduleScope.VariableResolutions.ContainsKey(concreteName))
             {
-                return ModuleScope.FunctionResolutions[concreteName];
+                return moduleScope.VariableResolutions[concreteName];
+            }
+
+            if (moduleScope.FunctionResolutions.ContainsKey(concreteName))
+            {
+                return moduleScope.FunctionResolutions[concreteName];
             }
 
             return null;
         }
 
+        ModuleScope LookupModuleScope(QualifiedName name)
+        {
+            var moduleScope = ModuleScope;
+            foreach (var submoduleName in name.Name.SkipLast(1)) // Don't use the concrete name
+            {
+                if (moduleScope.SubmoduleScopes.ContainsKey(submoduleName.Identifier))
+                {
+                    moduleScope = moduleScope.SubmoduleScopes[submoduleName.Identifier];
+                }
+                else
+                {
+                    return null;
+                }
+            }
+
+            return moduleScope;
+        }
+
         AilurusDataType LookupTypeByName(QualifiedName name)
         {
-            //TODO : Resolve modules
-            var baseName = name.Name[^1].Identifier;
-
-            if (ModuleScope.TypeDeclarations.ContainsKey(baseName))
+            var declaration = LookupTypeDeclarationByName(name);
+            if (declaration != null)
             {
-                var declaration = ModuleScope.TypeDeclarations[baseName];
+                return declaration.DataType;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        TypeDeclaration LookupTypeDeclarationByName(QualifiedName name)
+        {
+            // This works because all the types in the standard scope are reserved words so we can't alias them
+            if (StandardScope.TypeDeclarations.ContainsKey(name.ConcreteName.Identifier))
+            {
+                return StandardScope.TypeDeclarations[name.ConcreteName.Identifier];
+            }
+
+            var qualifiedModuleSope = LookupModuleScope(name); // Scope not found
+            if (qualifiedModuleSope == null)
+            {
+                return null;
+            }
+
+            var baseName = name.ConcreteName.Identifier;
+            if (qualifiedModuleSope.TypeDeclarations.ContainsKey(baseName))
+            {
+                var declaration = qualifiedModuleSope.TypeDeclarations[baseName];
                 if (declaration.State == TypeDeclaration.ResolutionState.Resolving)
                 {
                     Error($"Circular type declaration detected while resolving type {baseName}", declaration.SourceStart);
-                    return ErrorType.Instance;
+                    return StandardScope.ErrorDeclaration;
                 }
                 else if (declaration.State != TypeDeclaration.ResolutionState.Resolved)
                 {
                     ResolveTypeDeclarationSecondPass(declaration);
                 }
-                return declaration.DataType;
-            }
-            else
-            {
-                if (StandardScope.TypeDeclarations.ContainsKey(baseName))
-                {
-                    return StandardScope.TypeDeclarations[baseName].DataType;
-                }
+                return declaration;
             }
 
             return null;
@@ -222,7 +257,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             Token name,
             AilurusDataType type,
             bool isMutable,
-            bool initialized)
+            bool initialized,
+            bool isExported = false)
         {
             var resolution = new VariableResolution()
             {
@@ -340,7 +376,14 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
                 if (type is PlaceholderType placeholder)
                 {
-                    type = placeholder.ResolvedType;
+                    if (placeholder.ResolvedType != null)
+                    {
+                        type = placeholder.ResolvedType;
+                    }
+                    else if (PlaceholdersResolved && placeholder == null)
+                    {
+                        Error($"Reference to unresolved type '{placeholder.TypeName}'.", placeholder.TypeName.Name.SourceStart);
+                    }
                 }
 
                 if (b.VarModifier)
@@ -400,10 +443,20 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
             else if (t1 is PlaceholderType p1)
             {
+                if (p1.ResolvedType == null && PlaceholdersResolved)
+                {
+                    Error($"Reference to unresolved type '{p1.TypeName}'.", p1.TypeName.Name.SourceStart);
+                    return false; // Error Type
+                }
                 return TypesAreEqual(p1.ResolvedType, t2);
             }
             else if (t2 is PlaceholderType p2)
             {
+                if (p2.ResolvedType == null && PlaceholdersResolved)
+                {
+                    Error($"Reference to unresolved type '{p2.TypeName}'.", p2.TypeName.Name.SourceStart);
+                    return false; // Error Type
+                }
                 return TypesAreEqual(t1, p2.ResolvedType);
             }
             if (t1 is FunctionType f1 && t2 is FunctionType f2)
@@ -495,10 +548,20 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
             else if (lhsType is PlaceholderType lhsPlaceHolder)
             {
+                if (lhsPlaceHolder.ResolvedType == null)
+                {
+                    Error($"Reference to unresolved type {lhsPlaceHolder.TypeName}.", lhsPlaceHolder.TypeName.Name.SourceStart);
+                    return true; // ErrorType
+                }
                 return CanAssignToInner(lhsPlaceHolder.ResolvedType, rhsType, out errorMessage);
             }
             else if (rhsType is PlaceholderType rhsPlaceHolder)
             {
+                if (rhsPlaceHolder.ResolvedType == null)
+                {
+                    Error($"Reference to unresolved type {rhsPlaceHolder.TypeName}.", rhsPlaceHolder.TypeName.Name.SourceStart);
+                    return true; // ErrorType
+                }
                 return CanAssignToInner(lhsType, rhsPlaceHolder.ResolvedType, out errorMessage);
             }
             else if (lhsType is PointerType && rhsType is NullType) // Any pointer type can be set to null
@@ -1476,6 +1539,57 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         #region Resolve Statements
 
+        void ResolveStatements(List<StatementNode> statements)
+        {
+            foreach (var statement in statements)
+            {
+                ResolveStatement(statement);
+            }
+        }
+
+        void ResolveStatement(StatementNode statement)
+        {
+            switch (statement.StmtType)
+            {
+                case StatementType.Expression:
+                    ResolveExpression(((ExpressionStatement)statement).Expr);
+                    break;
+                case StatementType.Let:
+                    ResolveLet((LetStatement)statement);
+                    break;
+                case StatementType.Print:
+                    ResolvePrint((PrintStatement)statement);
+                    break;
+                case StatementType.Block:
+                    ResolveBlock((BlockStatement)statement);
+                    break;
+                case StatementType.If:
+                    ResolveIfStatement((IfStatement)statement);
+                    break;
+                case StatementType.While:
+                    ResolveWhileStatement((WhileStatement)statement);
+                    break;
+                case StatementType.For:
+                    ResolveForStatement((ForStatement)statement);
+                    break;
+                case StatementType.Break:
+                case StatementType.Continue:
+                    ResolveBreakOrContinueStatement((ControlStatement)statement);
+                    break;
+                case StatementType.Return:
+                    ResolveReturnStatement((ReturnStatement)statement);
+                    break;
+                case StatementType.Free:
+                    ResolveFreeStatement((FreeStatement)statement);
+                    break;
+                case StatementType.ForEach:
+                    ResolveForEachStatement((ForEachStatement)statement);
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+
         AilurusDataType GetAssertedType(TypeName assertedTypeName)
         {
             AilurusDataType assertedType = null;
@@ -1522,7 +1636,12 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
         }
 
-        bool DeclareVariable(Variable variable, AilurusDataType variableType, bool isMutable, bool initialized)
+        bool DeclareVariable(
+            Variable variable,
+            AilurusDataType variableType,
+            bool isMutable,
+            bool initialized,
+            bool isExported = false)
         {
             // Variable declarations should not qualify their names
             Debug.Assert(variable.Name.Name.Count == 1);
@@ -1544,13 +1663,19 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 variableName,
                 variableType,
                 isMutable,
-                initialized);
+                initialized,
+                isExported);
 
             variable.Resolution = declaration;
             return true;
         }
 
-        bool DeclareLValue(ILValue assignmentTarget, AilurusDataType assertedType, bool isMutable, bool initialized)
+        bool DeclareLValue(
+            ILValue assignmentTarget,
+            AilurusDataType assertedType,
+            bool isMutable,
+            bool initialized,
+            bool isExported)
         {
             if (assignmentTarget is TupleExpression tuple)
             {
@@ -1568,14 +1693,24 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
                     var variable = tuple.Elements[i] as Variable;
                     var variableType = assertedTupleType.MemberTypes[i];
-                    success = success && DeclareVariable(variable, variableType, isMutable, initialized);
+                    success = success && DeclareVariable(
+                        variable,
+                        variableType,
+                        isMutable,
+                        initialized,
+                        isExported);
                 }
 
                 return success;
             }
             else if (assignmentTarget is Variable variable)
             {
-                return DeclareVariable(variable, assertedType, isMutable, initialized);
+                return DeclareVariable(
+                    variable,
+                    assertedType,
+                    isMutable,
+                    initialized,
+                    isExported);
             }
             else
             {
@@ -1583,7 +1718,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
         }
 
-        void ResolveLet(LetStatement let, bool moduleVariable = false)
+        void ResolveLet(LetStatement let, bool moduleVariable = false, bool isExported = false)
         {
             var assertedType = GetAssertedType(let.AssertedType);
             AilurusDataType initializerType = null;
@@ -1622,7 +1757,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 return;
             }
 
-            DeclareLValue(let.AssignmentTarget, assertedType, let.IsMutable, initialized);
+            DeclareLValue(let.AssignmentTarget, assertedType, let.IsMutable, initialized, isExported);
         }
 
         void ResolvePrint(PrintStatement print)
@@ -1759,59 +1894,122 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 Error(errorMessage, forEach.AssignmentTarget.SourceStart);
             }
 
-            DeclareLValue(forEach.AssignmentTarget, assertedType, forEach.IsMutable, true);
+            DeclareLValue(
+                forEach.AssignmentTarget,
+                assertedType,
+                forEach.IsMutable,
+                true, // Is initialized
+                false); // Is not exported
 
             ResolveStatement(forEach.Body);
 
             EndScope();
         }
 
-        void ResolveStatement(StatementNode statement)
-        {
-            switch (statement.StmtType)
-            {
-                case StatementType.Expression:
-                    ResolveExpression(((ExpressionStatement)statement).Expr);
-                    break;
-                case StatementType.Let:
-                    ResolveLet((LetStatement)statement);
-                    break;
-                case StatementType.Print:
-                    ResolvePrint((PrintStatement)statement);
-                    break;
-                case StatementType.Block:
-                    ResolveBlock((BlockStatement)statement);
-                    break;
-                case StatementType.If:
-                    ResolveIfStatement((IfStatement)statement);
-                    break;
-                case StatementType.While:
-                    ResolveWhileStatement((WhileStatement)statement);
-                    break;
-                case StatementType.For:
-                    ResolveForStatement((ForStatement)statement);
-                    break;
-                case StatementType.Break:
-                case StatementType.Continue:
-                    ResolveBreakOrContinueStatement((ControlStatement)statement);
-                    break;
-                case StatementType.Return:
-                    ResolveReturnStatement((ReturnStatement)statement);
-                    break;
-                case StatementType.Free:
-                    ResolveFreeStatement((FreeStatement)statement);
-                    break;
-                case StatementType.ForEach:
-                    ResolveForEachStatement((ForEachStatement)statement);
-                    break;
-                default:
-                    throw new NotImplementedException();
-            }
-        }
-
         #endregion
 
         #region Resolve Declarations
+
+        void ResolveTypeDeclarationsFirstPass(Module module)
+        {
+            foreach (var typeDeclaration in module.TypeDeclarations)
+            {
+                // In the first pass we gather type names 
+                ResolveTypeDeclarationFirstPass(typeDeclaration);
+            }
+            foreach (var submodule in module.Submodules)
+            {
+                // Could even be parallelized?
+                var oldModuleScope = EnterModuleScope(submodule);
+                ResolveTypeDeclarationsFirstPass(submodule);
+                ExitModuleScope(oldModuleScope);
+            }
+        }
+
+        void ResolveTypeDeclarationsSecondPass(Module module)
+        {
+            foreach (var typeDeclaration in module.TypeDeclarations)
+            {
+                ResolveTypeDeclarationSecondPass(typeDeclaration);
+            }
+            foreach (var submodule in module.Submodules)
+            {
+                var oldModuleScope = EnterModuleScope(submodule);
+                ResolveTypeDeclarationsSecondPass(submodule);
+                ExitModuleScope(oldModuleScope);
+            }
+        }
+
+        void ResolveVariableDeclarations(Module module)
+        {
+            foreach (var variableDeclaration in module.VariableDeclarations)
+            {
+                ResolveModuleVariableDeclarations(variableDeclaration);
+            }
+            foreach (var submodule in module.Submodules)
+            {
+                var oldModuleScope = EnterModuleScope(submodule);
+                ResolveVariableDeclarations(submodule);
+                ExitModuleScope(oldModuleScope);
+            }
+        }
+
+        void ResolveFunctionDeclarationsFirstPass(Module module)
+        {
+            foreach (var functionDeclaration in module.FunctionDeclarations)
+            {
+                ResolveFunctionDeclarationFirstPass(functionDeclaration);
+            }
+            foreach (var submodule in module.Submodules)
+            {
+                var oldModuleScope = EnterModuleScope(submodule);
+                ResolveFunctionDeclarationsFirstPass(submodule);
+                ExitModuleScope(oldModuleScope);
+            }
+        }
+
+        void ResolveFunctionDeclarationsSecondPass(Module module)
+        {
+            foreach (var functionDeclaration in module.FunctionDeclarations)
+            {
+                ResolveFunctionDeclarationSecondPass(functionDeclaration);
+            }
+            foreach (var submodule in module.Submodules)
+            {
+                var oldModuleScope = EnterModuleScope(submodule);
+                ResolveFunctionDeclarationsSecondPass(submodule);
+                ExitModuleScope(oldModuleScope);
+            }
+        }
+
+        void ResolveTypeImportDeclarations(Module module)
+        {
+            foreach (var declaration in module.ImportDeclarations)
+            {
+                ResolveTypeImportDeclaration(declaration);
+            }
+            foreach (var submodule in module.Submodules)
+            {
+                var oldModuleScope = EnterModuleScope(submodule);
+                ResolveTypeImportDeclarations(submodule);
+                ExitModuleScope(oldModuleScope);
+            }
+        }
+
+        void ResolveFunctionVariableImportDeclarations(Module module)
+        {
+            foreach (var declaration in module.ImportDeclarations)
+            {
+                ResolveFunctionVariableImportDeclaration(declaration);
+            }
+
+            foreach (var submodule in module.Submodules)
+            {
+                var oldModuleScope = EnterModuleScope(submodule);
+                ResolveFunctionVariableImportDeclarations(submodule);
+                ExitModuleScope(oldModuleScope);
+            }
+        }
 
         bool ResolveAliasDeclarationFirstPass(TypeAliasDeclaration alias)
         {
@@ -2049,6 +2247,64 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     Error("Not all branches return a value.", token);
                 }
             }
+        }
+
+        void ResolveTypeImportDeclaration(ImportDeclaration import)
+        {
+            var declaration = LookupTypeDeclarationByName(import.Name);
+
+            // Not a definition or else it doesn't exist
+            if (declaration == null)
+            {
+                return;
+            }
+
+            if (!declaration.IsExported)
+            {
+                Error($"Unable to import {import.Name} since it was not exported.", import.Name.SourceStart);
+            }
+
+            // Intentionally after the declaration lookup so we don't print the message twice.
+            var typeName = import.Name.ConcreteName.Identifier;
+            if (!CanDeclareType(typeName))
+            {
+                Error($"Type name {typeName} is already declared in this module.", import.Name.ConcreteName);
+            }
+
+            ModuleScope.TypeDeclarations.Add(typeName, declaration);
+        }
+
+        void ResolveFunctionVariableImportDeclaration(ImportDeclaration import)
+        {
+            var identifier = import.Name.ConcreteName.Identifier;
+            if (!CanDeclareName(identifier))
+            {
+                Error($"Identifier with name '{identifier}' already exists in this module.", import.Name.ConcreteName);
+                return;
+            }
+
+            var resolution = FindVariableDefinition(import.Name);
+
+            if (resolution == null)
+            {
+                Error($"Value {import.Name} was not found in submodule.", import.Name.SourceStart);
+                return;
+            }
+
+            if (!resolution.IsExported)
+            {
+                Error($"Unable to import {import.Name} since it was not exported.", import.Name.SourceStart);
+            }
+
+            if (resolution is FunctionResolution functionResolution)
+            {
+                ModuleScope.FunctionResolutions.Add(identifier, functionResolution);
+            }
+            else if (resolution is VariableResolution variableResolution)
+            {
+                ModuleScope.VariableResolutions.Add(identifier, variableResolution);
+            }
+
         }
 
         #endregion

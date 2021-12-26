@@ -172,6 +172,21 @@ namespace AilurusLang.Parsing.Parsers
                     {
                         module.VariableDeclarations.Add(v);
                     }
+                    else if (declaration is SubmoduleDeclaration s)
+                    {
+                        module.SubmoduleDeclarations.Add(s);
+                    }
+                    else if (declaration is ImportDeclaration i)
+                    {
+                        module.ImportDeclarations.Add(i);
+                    }
+                    else if (declaration is MultiImportDeclaration m)
+                    {
+                        foreach (var name in m.Names)
+                        {
+                            module.ImportDeclarations.Add(new ImportDeclaration(m.BaseName, name));
+                        }
+                    }
                     else
                     {
                         throw new NotImplementedException();

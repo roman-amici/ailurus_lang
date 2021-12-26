@@ -23,6 +23,9 @@
  17. ~~Tuples~~
  18. Match Statement
  19. Uninitialized variable check / code flow analysis
+ 20. Constant Expressions
+ 21. Function pointers as static types
+ 21. Import variable renaming
 
 ## Front End Cleanup
 1. Synchronization

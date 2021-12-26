@@ -66,30 +66,26 @@ namespace AilurusLang.Interpreter.TreeWalker
 
         #region Module
 
-        public void EvalModule(Module module)
+        public int EvalRootModule(Module rootModule)
         {
-            foreach (var variable in module.VariableDeclarations)
-            {
-                EvalLetStatement(variable.Let);
-            }
+            EvalModule(rootModule);
 
             FunctionDeclaration mainFunction = null;
-            foreach (var function in module.FunctionDeclarations)
+            foreach (var function in rootModule.FunctionDeclarations)
             {
-                EvalFunctionDeclaration(function);
-                if (function.FunctionName.Lexeme == "main")
+                if (function.FunctionName.Identifier == "main")
                 {
                     mainFunction = function;
+                    break;
                 }
             }
 
             if (mainFunction == null)
             {
-                throw new RuntimeError("Unable to execute module, no 'main' function was found.", module.SourceStart);
+                throw new RuntimeError("Unable to execute module, no 'main' function was found.", rootModule.SourceStart);
             }
             else
             {
-                // TODO: Figure out a better way to do this.
                 var mainCall = new Call()
                 {
                     Callee = new Variable()
@@ -98,8 +94,37 @@ namespace AilurusLang.Interpreter.TreeWalker
                     },
                     ArgumentList = new List<ExpressionNode>(),
                 };
-                EvalCallExpression(mainCall);
+                var returnCode = EvalCallExpression(mainCall);
+
+                // Void
+                if (returnCode == null)
+                {
+                    return 0;
+                }
+                else
+                {
+                    return returnCode.GetAs<int>();
+                }
             }
+        }
+
+        void EvalModule(Module module)
+        {
+            foreach (var variable in module.VariableDeclarations)
+            {
+                EvalLetStatement(variable.Let);
+            }
+
+            foreach (var function in module.FunctionDeclarations)
+            {
+                EvalFunctionDeclaration(function);
+            }
+
+            foreach (var submodule in module.Submodules)
+            {
+                EvalModule(submodule);
+            }
+
         }
 
         void EvalFunctionDeclaration(FunctionDeclaration function)
@@ -214,14 +239,14 @@ namespace AilurusLang.Interpreter.TreeWalker
                     {
                         var variable = tupleVariables.Elements[j] as Variable;
                         var value = tupleValue[j];
-                        var env = GetEnvironmentForVariable(variable.Resolution, variable.Name);
+                        var env = GetEnvironmentForVariable(variable.Resolution);
                         env.SetValue(variable.Resolution, value);
                     }
                 }
                 else if (forEach.AssignmentTarget is Variable variable)
                 {
                     ;
-                    var env = GetEnvironmentForVariable(variable.Resolution, variable.Name);
+                    var env = GetEnvironmentForVariable(variable.Resolution);
                     if (forEach.IterateOverReference)
                     {
                         var ptr = new Pointer() { Memory = iteratedValue.GetElementAddress(i) };
@@ -440,7 +465,7 @@ namespace AilurusLang.Interpreter.TreeWalker
 
                 if (targetElement is Variable variable)
                 {
-                    var env = GetEnvironmentForVariable(variable.Resolution, variable.Name);
+                    var env = GetEnvironmentForVariable(variable.Resolution);
                     env.SetValue(variable.Resolution, valueElement);
                 }
                 else if (targetElement is Get get)
@@ -549,7 +574,7 @@ namespace AilurusLang.Interpreter.TreeWalker
         {
             if (expr is Variable v)
             {
-                var environment = GetEnvironmentForVariable(v.Resolution, v.Name);
+                var environment = GetEnvironmentForVariable(v.Resolution);
                 return environment.GetAddress(v.Resolution);
             }
             if (expr is Get g)
@@ -779,18 +804,13 @@ namespace AilurusLang.Interpreter.TreeWalker
             }
         }
 
-        TreeWalkerEnvironment GetEnvironmentForVariable(Resolution resolution, Token Name)
+        TreeWalkerEnvironment GetEnvironmentForVariable(Resolution resolution)
         {
             if (resolution is VariableResolution v)
             {
-                // if (!v.IsInitialized)
-                // {
-                //     // TODO: Reject statically
-                //     throw new RuntimeError("Referenced an uninitialized variable", Name);
-                // }
                 return GetEnvironmentForVariableResolution(v);
             }
-            else if (resolution is FunctionResolution f)
+            else if (resolution is FunctionResolution)
             {
                 return ModuleEnvironment;
             }
@@ -802,14 +822,14 @@ namespace AilurusLang.Interpreter.TreeWalker
 
         AilurusValue EvalVariableExpression(Variable varExpr)
         {
-            var environment = GetEnvironmentForVariable(varExpr.Resolution, varExpr.Name);
+            var environment = GetEnvironmentForVariable(varExpr.Resolution);
             return environment.GetValue(varExpr.Resolution);
         }
 
         AilurusValue EvalAssignExpression(Assign assign)
         {
             var value = EvalExpression(assign.Assignment);
-            var environment = GetEnvironmentForVariable(assign.Resolution, assign.Name);
+            var environment = GetEnvironmentForVariable(assign.Resolution);
 
             if (assign.PointerAssign)
             {

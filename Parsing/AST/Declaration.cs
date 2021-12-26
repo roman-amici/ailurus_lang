@@ -77,10 +77,23 @@ namespace AilurusLang.Parsing.AST
     public class SubmoduleDeclaration : Declaration
     {
         public Token Name { get; set; }
+
+        public string FilePath(string parentPath)
+        {
+            // TODO: use filepath object
+            return $"{parentPath}/{Name.Identifier}";
+        }
     }
 
     public class ImportDeclaration : Declaration
     {
+        public ImportDeclaration() { }
+
+        public ImportDeclaration(QualifiedName baseName, Token importedValue)
+        {
+            Name = new QualifiedName(baseName, importedValue);
+        }
+
         public QualifiedName Name { get; set; }
     }
 

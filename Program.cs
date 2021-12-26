@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using AilurusLang.Interpreter.TreeWalker;
 using AilurusLang.Interpreter.TreeWalker.Evaluators;
@@ -11,6 +12,11 @@ namespace AilurusLang
 {
     class Ailurus
     {
+        public static Scanner Scanner { get; set; }
+        public static RecursiveDescentParser Parser { get; set; }
+        public static Resolver Resolver { get; set; }
+        public static TreeWalker TreeWalker { get; set; }
+
         static void Main(string[] args)
         {
             Console.WriteLine(args[0]);
@@ -21,28 +27,71 @@ namespace AilurusLang
             }
 
             var filename = args[0];
-            Lex(filename);
+            Run(filename);
         }
 
-        static void Lex(string fileName)
+        static Module ParseModule(string fileName, List<string> modulePath)
         {
-            var scanner = new Scanner();
-            var parser = new RecursiveDescentParser();
-            var resolver = new Resolver();
-            var treeWalker = new TreeWalker(new DynamicValueEvaluator());
+            if (!File.Exists(fileName))
+            {
+                Console.WriteLine($"Could not find file {fileName}.");
+                Environment.Exit(1);
+            }
 
             var source = File.ReadAllText(fileName);
 
-            var tokens = scanner.Scan(source, fileName);
-            var module = parser.Parse(tokens);
-            if (parser.IsValid && module != null)
+            var tokens = Scanner.Scan(source, fileName);
+            var module = Parser.Parse(tokens);
+
+            module.Path = modulePath;
+
+            if (!Parser.IsValid)
             {
-                resolver.ResolveModule(module);
-                if (!resolver.HadError)
+                return null;
+            }
+
+            var submodules = new List<Module>();
+            foreach (var submoduleDeclaration in module.SubmoduleDeclarations)
+            {
+                var submoduleFileName = submoduleDeclaration.FilePath(fileName);
+
+                // Append the subpath to the path list
+                var subpath = new List<string>(modulePath)
                 {
-                    treeWalker.EvalModule(module);
+                    submoduleDeclaration.Name.Identifier
+                };
+
+                var submodule = ParseModule(submoduleFileName, subpath);
+                if (submodule == null)
+                {
+                    return null;
                 }
             }
+
+            module.Submodules = submodules;
+            return module;
+        }
+
+        static void Run(string rootFileName)
+        {
+            Scanner = new Scanner();
+            Parser = new RecursiveDescentParser();
+            Resolver = new Resolver();
+            TreeWalker = new TreeWalker(new DynamicValueEvaluator());
+
+            Module rootModule = ParseModule(rootFileName, new List<string>());
+
+            int exitCode = 0;
+            if (rootModule != null)
+            {
+                Resolver.ResolveRootModule(rootModule);
+                if (!Resolver.HadError)
+                {
+                    exitCode = TreeWalker.EvalRootModule(rootModule);
+                }
+            }
+
+            Environment.Exit(exitCode);
         }
     }
 }

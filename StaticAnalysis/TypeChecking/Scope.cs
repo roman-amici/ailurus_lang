@@ -8,6 +8,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
     {
         public Dictionary<string, BaseTypeDeclaration> TypeDeclarations { get; set; }
 
+        public static BaseTypeDeclaration ErrorDeclaration = new BaseTypeDeclaration() { TypeName = StandardTypeNames.Error, DataType = ErrorType.Instance };
+
         public StandardScope()
         {
             TypeDeclarations = new Dictionary<string, BaseTypeDeclaration>
@@ -23,7 +25,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 { "double", new BaseTypeDeclaration() { TypeName = StandardTypeNames.Double, DataType = DoubleType.Instance } },
                 { "void", new BaseTypeDeclaration() {TypeName = StandardTypeNames.Void, DataType = VoidType.Instance}},
                 { "string", new BaseTypeDeclaration() {TypeName = StandardTypeNames.StringName, DataType = StringType.Instance}},
-                { "char", new BaseTypeDeclaration() {TypeName = StandardTypeNames.Char, DataType= CharType.Instance}},
+                { "char", new BaseTypeDeclaration() {TypeName = StandardTypeNames.Char, DataType = CharType.Instance}},
             };
         }
     }
