@@ -265,7 +265,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 Name = name.Lexeme,
                 DataType = type,
                 IsMutable = isMutable,
-                IsInitialized = initialized
+                IsInitialized = initialized,
+                IsExported = isExported
             };
 
             if (Scopes.Count > 0)
@@ -2155,7 +2156,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         void ResolveModuleVariableDeclarations(ModuleVariableDeclaration declaration)
         {
-            ResolveLet(declaration.Let);
+            ResolveLet(declaration.Let, true, declaration.IsExported);
         }
 
         void ResolveFunctionDeclarationFirstPass(FunctionDeclaration declaration)
@@ -2303,6 +2304,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             if (!resolution.IsExported)
             {
                 Error($"Unable to import {import.Name} since it was not exported.", import.Name.SourceStart);
+                return;
             }
 
             if (resolution is FunctionResolution functionResolution)

@@ -97,11 +97,13 @@ namespace AilurusLang.Parsing.Parsers
 
         QualifiedName MatchQualifiedName()
         {
+            var startIndex = Current;
             var name = new List<Token>();
             do
             {
                 if (!Match(TokenType.Identifier))
                 {
+                    Current = startIndex; // Rewind the index
                     return null;
                 }
                 name.Add(Previous);
