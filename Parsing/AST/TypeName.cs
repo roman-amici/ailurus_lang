@@ -5,7 +5,7 @@ namespace AilurusLang.Parsing.AST
 {
     public abstract class TypeName
     {
-        public virtual Token Name { get; set; }
+        public virtual QualifiedName Name { get; set; }
     }
 
     public class BaseTypeName : TypeName
@@ -16,7 +16,7 @@ namespace AilurusLang.Parsing.AST
 
     public class ArrayTypeName : TypeName
     {
-        public override Token Name
+        public override QualifiedName Name
         {
             get => BaseTypeName.Name;
         }
@@ -31,7 +31,7 @@ namespace AilurusLang.Parsing.AST
 
     public class PointerTypeName : TypeName
     {
-        public override Token Name
+        public override QualifiedName Name
         {
             get => BaseTypeName.Name;
         }
@@ -48,17 +48,17 @@ namespace AilurusLang.Parsing.AST
 
     public class StandardTypeNames
     {
-        public static readonly TypeName Void = new BaseTypeName() { Name = Token.StaticIdentifier("void") };
-        public static readonly TypeName Bool = new BaseTypeName() { Name = Token.StaticIdentifier("bool") };
-        public static readonly TypeName Int = new BaseTypeName() { Name = Token.StaticIdentifier("int") };
-        public static readonly TypeName Byte = new BaseTypeName() { Name = Token.StaticIdentifier("byte") };
-        public static readonly TypeName Short = new BaseTypeName() { Name = Token.StaticIdentifier("short") };
-        public static readonly TypeName Ushort = new BaseTypeName() { Name = Token.StaticIdentifier("ubyte") };
-        public static readonly TypeName UByte = new BaseTypeName() { Name = Token.StaticIdentifier("ushort") };
-        public static readonly TypeName Uint = new BaseTypeName() { Name = Token.StaticIdentifier("uint") };
-        public static readonly TypeName Float = new BaseTypeName() { Name = Token.StaticIdentifier("float") };
-        public static readonly TypeName Double = new BaseTypeName() { Name = Token.StaticIdentifier("double") };
-        public static readonly TypeName StringName = new BaseTypeName() { Name = Token.StaticIdentifier("string") };
-        public static readonly TypeName Char = new BaseTypeName() { Name = Token.StaticIdentifier("char") };
+        public static readonly TypeName Void = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("void")) };
+        public static readonly TypeName Bool = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("bool")) };
+        public static readonly TypeName Int = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("int")) };
+        public static readonly TypeName Byte = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("byte")) };
+        public static readonly TypeName Short = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("short")) };
+        public static readonly TypeName Ushort = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("ubyte")) };
+        public static readonly TypeName UByte = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("ushort")) };
+        public static readonly TypeName Uint = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("uint")) };
+        public static readonly TypeName Float = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("float")) };
+        public static readonly TypeName Double = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("double")) };
+        public static readonly TypeName StringName = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("string")) };
+        public static readonly TypeName Char = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("char")) };
     }
 }

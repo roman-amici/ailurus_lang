@@ -20,8 +20,9 @@
  15. Variants
  16. ~~Address of array elements~~
   - ~~Address of array elements in foreach loop~~
- 17. Tuples
+ 17. ~~Tuples~~
  18. Match Statement
+ 19. Uninitialized variable check / code flow analysis
 
 ## Front End Cleanup
 1. Synchronization

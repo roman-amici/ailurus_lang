@@ -36,6 +36,7 @@ namespace AilurusLang.Parsing.AST
         }
         public TypeName TypeName { get; set; }
     } //Used for base types
+
     public class TypeAliasDeclaration : TypeDeclaration
     {
         public Token AliasName { get; set; }
@@ -73,5 +74,19 @@ namespace AilurusLang.Parsing.AST
         public List<VariableResolution> ArgumentResolutions { get; set; }
     }
 
+    public class SubmoduleDeclaration : Declaration
+    {
+        public Token Name { get; set; }
+    }
 
+    public class ImportDeclaration : Declaration
+    {
+        public QualifiedName Name { get; set; }
+    }
+
+    public class MultiImportDeclaration : Declaration
+    {
+        public QualifiedName BaseName { get; set; }
+        public List<Token> Names { get; set; }
+    }
 }

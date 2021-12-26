@@ -98,14 +98,16 @@ namespace AilurusLang.Parsing.AST
     public class Variable : ExpressionNode, ILValue
     {
         public Variable() : base(ExpressionType.Variable) { }
-        public Token Name { get; set; }
+        public QualifiedName Name { get; set; }
+
+        // Resolver Properties
         public Resolution Resolution { get; set; }
     }
 
     public class Assign : ExpressionNode
     {
         public Assign() : base(ExpressionType.Assign) { }
-        public Token Name { get; set; }
+        public QualifiedName Name { get; set; }
         public VariableResolution Resolution { get; set; }
         public ExpressionNode Assignment { get; set; }
 
@@ -147,7 +149,7 @@ namespace AilurusLang.Parsing.AST
     public class StructInitialization : ExpressionNode
     {
         public StructInitialization() : base(ExpressionType.StructInitialization) { }
-        public Token StructName { get; set; }
+        public QualifiedName StructName { get; set; }
         public List<(Token, ExpressionNode)> Initializers { get; set; }
     }
 

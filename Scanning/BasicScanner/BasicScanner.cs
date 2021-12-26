@@ -156,7 +156,6 @@ namespace AilurusLang.Scanning.BasicScanner
                 case '.': return CreateToken(TokenType.Dot);
                 case '+': return CreateToken(TokenType.Plus);
                 case ';': return CreateToken(TokenType.Semicolon);
-                case ':': return CreateToken(TokenType.Colon);
                 case '?': return CreateToken(TokenType.QuestionMark);
                 case '*': return CreateToken(TokenType.Star);
                 case '@': return CreateToken(TokenType.At);
@@ -236,6 +235,16 @@ namespace AilurusLang.Scanning.BasicScanner
                     {
                         return CreateToken(TokenType.Carrot);
                     }
+                case ':':
+                    if (Match(':'))
+                    {
+                        return CreateToken(TokenType.ColonColon);
+                    }
+                    else
+                    {
+                        return CreateToken(TokenType.Colon);
+                    }
+
                 case '/':
                     if (Match('/'))
                     {

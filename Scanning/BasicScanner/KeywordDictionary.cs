@@ -45,10 +45,9 @@ namespace AilurusLang.Scanning.BasicScanner
             Add("var", TokenType.Var);
 
             // Modules
-            Add("module", TokenType.Module);
+            Add("submodule", TokenType.Submodule);
             Add("export", TokenType.Export);
             Add("import", TokenType.Import);
-            Add("from", TokenType.From);
 
             // Array Operators
             Add("lenOf", TokenType.LenOf);

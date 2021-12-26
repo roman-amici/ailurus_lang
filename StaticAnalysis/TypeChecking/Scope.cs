@@ -30,6 +30,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
     public class ModuleScope
     {
+        public Dictionary<string, ModuleScope> SubmoduleScopes { get; set; } = new Dictionary<string, ModuleScope>();
+
         public Dictionary<string, TypeDeclaration> TypeDeclarations { get; set; } = new Dictionary<string, TypeDeclaration>();
         public Dictionary<string, VariableResolution> VariableResolutions { get; set; } = new Dictionary<string, VariableResolution>();
         public Dictionary<string, FunctionResolution> FunctionResolutions { get; set; } = new Dictionary<string, FunctionResolution>();

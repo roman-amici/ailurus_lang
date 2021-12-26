@@ -39,7 +39,7 @@ namespace AilurusLang.Scanning
         Carrot, // ^
         CarrotCarrot, // ^^
         Slash, // /
-        Array, // []
+        ColonColon,
 
         //Literals
         Identifier, // Alphanumeric, not starting with a number. Includes _
@@ -88,10 +88,9 @@ namespace AilurusLang.Scanning
         Var,
 
         // Modules
-        Module,
+        Submodule,
         Export,
         Import,
-        From,
 
         // Array Operators
         LenOf,

@@ -79,6 +79,76 @@ namespace AilurusLang.Parsing.Parsers
             return Advance();
         }
 
+        QualifiedName ConsumeQualifiedName()
+        {
+            var name = new List<Token>();
+
+            do
+            {
+                var namePart = Consume(TokenType.Identifier, "Expected identifier.");
+                name.Add(namePart);
+            } while (Match(TokenType.ColonColon));
+
+            return new QualifiedName()
+            {
+                Name = name
+            };
+        }
+
+        QualifiedName MatchQualifiedName()
+        {
+            var name = new List<Token>();
+            do
+            {
+                if (!Match(TokenType.Identifier))
+                {
+                    return null;
+                }
+                name.Add(Previous);
+            } while (Match(TokenType.ColonColon));
+
+            return new QualifiedName() { Name = name };
+        }
+
+        QualifiedName ConsumeMultiImport(out List<Token> names)
+        {
+            names = new List<Token>();
+
+            var qualifiedNameParts = new List<Token>();
+
+            bool namesStart = false;
+            do
+            {
+                if (Match(TokenType.LeftBrace))
+                {
+                    namesStart = true;
+                }
+                else
+                {
+                    var namePart = Consume(TokenType.Identifier, "Expected identifier.");
+                    qualifiedNameParts.Add(namePart);
+                }
+            } while (Match(TokenType.ColonColon) && !namesStart);
+
+            if (!namesStart)
+            {
+                RaiseError(Previous, "Unexpected token.");
+            }
+
+            do
+            {
+                var name = Consume(TokenType.Identifier, "Expected identifier.");
+                names.Add(name);
+            } while (Match(TokenType.Comma));
+
+            Consume(TokenType.RightBrace, "Expected '}' in import declaration.");
+
+            return new QualifiedName()
+            {
+                Name = qualifiedNameParts
+            };
+        }
+
         public Module Parse(List<Token> tokens)
         {
             Reset();
@@ -206,13 +276,13 @@ namespace AilurusLang.Parsing.Parsers
             }
 
             // Identifier-based
-            if (Match(TokenType.Identifier))
+            var qualifiedName = MatchQualifiedName();
+            if (qualifiedName != null)
             {
-                var name = Previous;
                 return new Variable()
                 {
-                    Name = name,
-                    SourceStart = Previous
+                    Name = qualifiedName,
+                    SourceStart = qualifiedName.SourceStart
                 };
             }
 
@@ -321,7 +391,7 @@ namespace AilurusLang.Parsing.Parsers
 
         StructInitialization StructInitializer()
         {
-            var name = Consume(TokenType.Identifier, "Expected identifer after 'struct'.");
+            var name = ConsumeQualifiedName();
             var sourceStart = Previous;
             Consume(TokenType.LeftBrace, "Expected '{' after struct name");
 
@@ -340,7 +410,7 @@ namespace AilurusLang.Parsing.Parsers
 
             if (IsAtEnd)
             {
-                RaiseError(name, "Unterminated struct initializer");
+                RaiseError(name.SourceStart, "Unterminated struct initializer");
             }
 
             Consume(TokenType.RightBrace, "Expected '}' after struct initializer.");
@@ -468,7 +538,7 @@ namespace AilurusLang.Parsing.Parsers
             {
                 if (Match(TokenType.LeftParen))
                 {
-                    expr = ArgumentList(expr); //Embed the callee expression in the Call Exprssion
+                    expr = ArgumentList(expr); //Embed the callee expression in the Call Expression
                 }
                 else if (Match(TokenType.Dot))
                 {
@@ -745,10 +815,11 @@ namespace AilurusLang.Parsing.Parsers
                 var elements = new List<ExpressionNode>();
                 do
                 {
+                    // LValues must be pure identifiers
                     var name = Consume(TokenType.Identifier, "Expected identifier.");
                     elements.Add(new Variable()
                     {
-                        Name = name,
+                        Name = new QualifiedName(name),
                         SourceStart = name
                     });
                 } while (Match(TokenType.Comma));
@@ -767,11 +838,12 @@ namespace AilurusLang.Parsing.Parsers
             }
             else
             {
+                // LValues must be pure identifiers, not qualified names
                 var name = Consume(TokenType.Identifier, "Expected name after 'let'");
 
                 return new Variable()
                 {
-                    Name = name,
+                    Name = new QualifiedName(name),
                     SourceStart = name
                 };
             }
@@ -783,11 +855,7 @@ namespace AilurusLang.Parsing.Parsers
 
         Declaration Declaration()
         {
-            var isExported = false;
-            if (Match(TokenType.Export))
-            {
-                isExported = true;
-            }
+            var isExported = Match(TokenType.Export);
 
             Declaration declaration = null;
             if (Match(TokenType.Fn))
@@ -806,6 +874,14 @@ namespace AilurusLang.Parsing.Parsers
             {
                 declaration = ModuleVariableDeclaration();
             }
+            else if (Match(TokenType.Import))
+            {
+                declaration = ImportDeclaration();
+            }
+            else if (Match(TokenType.Submodule))
+            {
+                declaration = SubmoduleDeclaration();
+            }
             else
             {
                 RaiseError(Peek, $"Unexpected token found '{Peek.Lexeme}'.");
@@ -813,6 +889,41 @@ namespace AilurusLang.Parsing.Parsers
 
             declaration.IsExported = isExported;
             return declaration;
+        }
+
+        SubmoduleDeclaration SubmoduleDeclaration()
+        {
+            var name = Consume(TokenType.Identifier, "Expected identifier after 'submodule'.");
+
+            Consume(TokenType.Semicolon, "Expected ';' after 'submodule'.");
+            return new SubmoduleDeclaration()
+            {
+                Name = name
+            };
+        }
+
+        Declaration ImportDeclaration()
+        {
+            Declaration importDeclaration;
+            var import = MatchQualifiedName();
+            if (import != null)
+            {
+                importDeclaration = new ImportDeclaration() { Name = import };
+            }
+            else
+            {
+                import = ConsumeMultiImport(out List<Token> names);
+
+                importDeclaration = new MultiImportDeclaration()
+                {
+                    BaseName = import,
+                    Names = names
+                };
+            }
+
+            Consume(TokenType.Semicolon, "Expected ';' after 'import'.");
+
+            return importDeclaration;
         }
 
         ModuleVariableDeclaration ModuleVariableDeclaration()
@@ -958,7 +1069,7 @@ namespace AilurusLang.Parsing.Parsers
             {
                 baseType = new BaseTypeName()
                 {
-                    Name = Consume(TokenType.Identifier, "Expected type name"),
+                    Name = ConsumeQualifiedName(),
                     VarModifier = arrayModifier
                 };
             }

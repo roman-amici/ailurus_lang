@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using AilurusLang.DataType;
 using AilurusLang.Parsing.AST;
@@ -161,37 +162,43 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
         }
 
-        public Resolution FindVariableDefinition(string name)
+        public Resolution FindVariableDefinition(QualifiedName name)
         {
+            // TODO: Handle module resolution
+            var concreteName = name.Name[^1].Lexeme;
+
             foreach (var scope in Scopes)
             {
-                if (scope.VariableResolutions.ContainsKey(name))
+                if (scope.VariableResolutions.ContainsKey(concreteName))
                 {
-                    return scope.VariableResolutions[name];
+                    return scope.VariableResolutions[concreteName];
                 }
             }
 
-            if (ModuleScope.VariableResolutions.ContainsKey(name))
+            if (ModuleScope.VariableResolutions.ContainsKey(concreteName))
             {
-                return ModuleScope.VariableResolutions[name];
+                return ModuleScope.VariableResolutions[concreteName];
             }
 
-            if (ModuleScope.FunctionResolutions.ContainsKey(name))
+            if (ModuleScope.FunctionResolutions.ContainsKey(concreteName))
             {
-                return ModuleScope.FunctionResolutions[name];
+                return ModuleScope.FunctionResolutions[concreteName];
             }
 
             return null;
         }
 
-        AilurusDataType LookupTypeByName(string name)
+        AilurusDataType LookupTypeByName(QualifiedName name)
         {
-            if (ModuleScope.TypeDeclarations.ContainsKey(name))
+            //TODO : Resolve modules
+            var baseName = name.Name[^1].Identifier;
+
+            if (ModuleScope.TypeDeclarations.ContainsKey(baseName))
             {
-                var declaration = ModuleScope.TypeDeclarations[name];
+                var declaration = ModuleScope.TypeDeclarations[baseName];
                 if (declaration.State == TypeDeclaration.ResolutionState.Resolving)
                 {
-                    Error($"Circular type declaration detected while resolving type {name}", declaration.SourceStart);
+                    Error($"Circular type declaration detected while resolving type {baseName}", declaration.SourceStart);
                     return ErrorType.Instance;
                 }
                 else if (declaration.State != TypeDeclaration.ResolutionState.Resolved)
@@ -202,9 +209,9 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
             else
             {
-                if (StandardScope.TypeDeclarations.ContainsKey(name))
+                if (StandardScope.TypeDeclarations.ContainsKey(baseName))
                 {
-                    return StandardScope.TypeDeclarations[name].DataType;
+                    return StandardScope.TypeDeclarations[baseName].DataType;
                 }
             }
 
@@ -263,7 +270,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             return placeholder.ResolvedType;
         }
 
-        AilurusDataType ResolveTypeName(Token name)
+        AilurusDataType ResolveTypeName(QualifiedName name)
         {
             return ResolveTypeName(new BaseTypeName()
             {
@@ -325,7 +332,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
             else if (typeName is BaseTypeName b)
             {
-                var type = LookupTypeByName(b.Name.Lexeme);
+                var type = LookupTypeByName(b.Name);
                 if (type == null)
                 {
                     return ErrorType.Instance;
@@ -347,7 +354,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     }
                     else
                     {
-                        Warning("'var' applied to type which cannot be variable. Modifier will be ignored.", b.Name);
+                        Warning("'var' applied to type which cannot be variable. Modifier will be ignored.", b.Name.ConcreteName);
                     }
                 }
 
@@ -1041,7 +1048,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         AilurusDataType ResolveStructInitialization(StructInitialization expr)
         {
-            var structName = expr.StructName.Identifier;
+            var structName = expr.StructName.ConcreteName;
             var type = ResolveTypeName(expr.StructName);
             expr.DataType = type;
 
@@ -1074,12 +1081,12 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
                 if (fieldsIntialized.Count != structType.Definitions.Count)
                 {
-                    Error($"Not all fields were initialized for struct '{structName}'.", expr.StructName);
+                    Error($"Not all fields were initialized for struct '{structName}'.", expr.StructName.SourceStart);
                 }
             }
             else
             {
-                Error($"Expected struct type but found type {type.DataTypeName}.", expr.StructName);
+                Error($"Expected struct type but found type {type.DataTypeName}.", expr.StructName.SourceStart);
             }
 
             return expr.DataType;
@@ -1175,10 +1182,10 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         AilurusDataType ResolveAssign(Assign expr)
         {
             var assignment = ResolveExpression(expr.Assignment);
-            var declaration = FindVariableDefinition(expr.Name.Lexeme);
+            var declaration = FindVariableDefinition(expr.Name);
             if (declaration == null)
             {
-                Error($"No variable was found with name {expr.Name.Lexeme}", expr.Name);
+                Error($"No variable was found with name {expr.Name}", expr.Name.SourceStart);
             }
             else if (declaration is VariableResolution v)
             {
@@ -1197,7 +1204,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
             else
             {
-                Error($"Cannot assign to {expr.Name.Lexeme}", expr.Name);
+                Error($"Cannot assign to {expr.Name}", expr.Name.SourceStart);
             }
 
             expr.DataType = assignment;
@@ -1206,12 +1213,12 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         AilurusDataType ResolveVariable(Variable expr)
         {
-            var resolution = FindVariableDefinition(expr.Name.Lexeme);
+            var resolution = FindVariableDefinition(expr.Name);
 
             expr.DataType = ErrorType.Instance;
             if (resolution == null)
             {
-                Error($"No variable was found with name {expr.Name.Lexeme}", expr.SourceStart);
+                Error($"No variable was found with name {expr.Name}", expr.SourceStart);
                 return expr.DataType;
             }
 
@@ -1477,7 +1484,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 assertedType = ResolveTypeName(assertedTypeName);
                 if (assertedType is ErrorType)
                 {
-                    Error($"Asserted type '{assertedTypeName.Name.Lexeme}' could not be found.", assertedTypeName.Name);
+                    Error($"Asserted type '{assertedTypeName.Name}' could not be found.", assertedTypeName.Name.SourceStart);
                 }
             }
 
@@ -1517,20 +1524,24 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         bool DeclareVariable(Variable variable, AilurusDataType variableType, bool isMutable, bool initialized)
         {
-            if (!IsValidVariableName(variable.Name.Lexeme))
+            // Variable declarations should not qualify their names
+            Debug.Assert(variable.Name.Name.Count == 1);
+
+            var variableName = variable.Name.ConcreteName;
+            if (!IsValidVariableName(variableName.Identifier))
             {
-                Error($"Variable cannot have name '{variable.Name.Lexeme}' since it is reserved.", variable.Name);
+                Error($"Variable cannot have name '{variableName}' since it is reserved.", variableName);
                 return false;
             }
 
-            if (!CanDeclareName(variable.Name.Lexeme))
+            if (!CanDeclareName(variableName.Identifier))
             {
-                Error($"Variable with name '{variable.Name.Lexeme}' already exists in this scope.", variable.Name);
+                Error($"Variable with name '{variableName.Identifier}' already exists in this scope.", variable.Name.ConcreteName);
                 return false;
             }
 
             var declaration = AddVariableToCurrentScope(
-                variable.Name,
+                variableName,
                 variableType,
                 isMutable,
                 initialized);
@@ -1902,7 +1913,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
             if (aliasType.BaseType is ErrorType)
             {
-                Error($"Unable to declare type alias {alias.AliasName.Identifier}. Could not resolve type name {alias.AliasedTypeName.Name.Identifier}", alias.AliasName);
+                Error($"Unable to declare type alias {alias.AliasName.Identifier}. Could not resolve type name {alias.AliasedTypeName.Name}", alias.AliasName);
             }
 
             alias.State = TypeDeclaration.ResolutionState.Resolved;
@@ -1960,7 +1971,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 var type = ResolveTypeName(argument.TypeName);
                 if (!IsValidFunctionArgumentType(type))
                 {
-                    Error($"Type {type.DataTypeName} is not a valid type for a function argument", argument.TypeName.Name);
+                    Error($"Type {type.DataTypeName} is not a valid type for a function argument", argument.TypeName.Name.SourceStart);
                 }
                 argumentTypes.Add(type);
                 argumentMutable.Add(argument.IsMutable);
