@@ -34,8 +34,20 @@ namespace AilurusLang
         {
             if (!File.Exists(fileName))
             {
-                Console.WriteLine($"Could not find file {fileName}.");
-                Environment.Exit(1);
+                if (Directory.Exists(fileName))
+                {
+                    return ParseModule($"{fileName}/submodule.ail", modulePath);
+                }
+                else if (!fileName.EndsWith(".ail"))
+                {
+                    // Retry with a ".ail" file
+                    return ParseModule($"{fileName}.ail", modulePath);
+                }
+                else
+                {
+                    Console.WriteLine($"Could not find file {fileName}.");
+                    Environment.Exit(1);
+                }
             }
 
             var source = File.ReadAllText(fileName);
@@ -43,12 +55,12 @@ namespace AilurusLang
             var tokens = Scanner.Scan(source, fileName);
             var module = Parser.Parse(tokens);
 
-            module.Path = modulePath;
-
             if (!Parser.IsValid)
             {
                 return null;
             }
+
+            module.Path = modulePath;
 
             var submodules = new List<Module>();
             foreach (var submoduleDeclaration in module.SubmoduleDeclarations)
@@ -66,6 +78,7 @@ namespace AilurusLang
                 {
                     return null;
                 }
+                submodules.Add(submodule);
             }
 
             module.Submodules = submodules;

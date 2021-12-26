@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using AilurusLang.Scanning;
+using System.Linq;
 
 namespace AilurusLang.Parsing.AST
 {
@@ -23,7 +24,7 @@ namespace AilurusLang.Parsing.AST
 
         public override string ToString()
         {
-            return string.Join("::", Name);
+            return string.Join("::", Name.Select(t => t.Identifier));
         }
     }
 }

@@ -2135,12 +2135,13 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             var hadError = false;
             foreach (var fieldName in structType.Definitions.Keys.ToList())
             {
-                var placeholder = (PlaceholderType)structType.Definitions[fieldName];
-
-                structType.Definitions[fieldName] = placeholder.ResolvedType;
-                if (placeholder.ResolvedType is ErrorType)
+                if (structType.Definitions[fieldName] is PlaceholderType placeholder)
                 {
-                    hadError = true;
+                    structType.Definitions[fieldName] = placeholder.ResolvedType;
+                    if (placeholder.ResolvedType is ErrorType)
+                    {
+                        hadError = true;
+                    }
                 }
             }
 
@@ -2262,6 +2263,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             if (!declaration.IsExported)
             {
                 Error($"Unable to import {import.Name} since it was not exported.", import.Name.SourceStart);
+                return;
             }
 
             // Intentionally after the declaration lookup so we don't print the message twice.
@@ -2269,13 +2271,20 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             if (!CanDeclareType(typeName))
             {
                 Error($"Type name {typeName} is already declared in this module.", import.Name.ConcreteName);
+                return;
             }
 
             ModuleScope.TypeDeclarations.Add(typeName, declaration);
+            import.IsResolved = true;
         }
 
         void ResolveFunctionVariableImportDeclaration(ImportDeclaration import)
         {
+            if (import.IsResolved)
+            {
+                return; // TypeDeclaration that's already resolveds
+            }
+
             var identifier = import.Name.ConcreteName.Identifier;
             if (!CanDeclareName(identifier))
             {
@@ -2304,7 +2313,12 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             {
                 ModuleScope.VariableResolutions.Add(identifier, variableResolution);
             }
+            else
+            {
+                throw new NotImplementedException();
+            }
 
+            import.IsResolved = true;
         }
 
         #endregion

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using AilurusLang.DataType;
 using AilurusLang.Scanning;
+using System.Linq;
 
 namespace AilurusLang.Parsing.AST
 {
@@ -80,8 +81,9 @@ namespace AilurusLang.Parsing.AST
 
         public string FilePath(string parentPath)
         {
-            // TODO: use filepath object
-            return $"{parentPath}/{Name.Identifier}";
+            // remove the last file name. By assumption there was always a last file name
+            var path = string.Join('/', parentPath.Split("/").SkipLast(1));
+            return $"{path}/{Name.Identifier}";
         }
     }
 
@@ -95,6 +97,8 @@ namespace AilurusLang.Parsing.AST
         }
 
         public QualifiedName Name { get; set; }
+
+        public bool IsResolved { get; set; }
     }
 
     public class MultiImportDeclaration : Declaration

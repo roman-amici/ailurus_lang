@@ -9,6 +9,7 @@
    - ~~Add struct field reference syntax and semantics~~
  5. ~~Add Type alias Declarations~~
  6. Add Module resolution
+   - 'this' and 'super' in module names
  7. ~~Pointer semantics (without arithmetic)~~.
  8. ~~Mutability semantics for pointers.~~
  9. ~~Array syntax and semantics.~~
