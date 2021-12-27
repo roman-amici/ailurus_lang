@@ -17,6 +17,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         public List<BlockScope> Scopes { get; set; } = new List<BlockScope>();
         public ModuleScope ModuleScope { get; set; } = new ModuleScope();
 
+        public ModuleScope RootModuleScope { get; set; }
+
         //TODO: Proper branch analysis and dead-code detection
         public bool WasInLoopBody { get; set; }
         public bool IsInLoopBody { get; set; }
@@ -53,6 +55,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         public void ResolveRootModule(Module module)
         {
+            RootModuleScope = ModuleScope;
+
             ResolveTypeDeclarationsFirstPass(module);
             ResolveTypeImportDeclarations(module);
             ResolveTypeDeclarationsSecondPass(module);
@@ -176,23 +180,38 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 return null;
             }
 
+            Resolution nameResolution = null;
             if (moduleScope.VariableResolutions.ContainsKey(concreteName))
             {
-                return moduleScope.VariableResolutions[concreteName];
+                nameResolution = moduleScope.VariableResolutions[concreteName];
             }
 
             if (moduleScope.FunctionResolutions.ContainsKey(concreteName))
             {
-                return moduleScope.FunctionResolutions[concreteName];
+                nameResolution = moduleScope.FunctionResolutions[concreteName];
             }
 
-            return null;
+            if (moduleScope != ModuleScope
+                && nameResolution != null
+                && !nameResolution.IsExported) // Foregin variable
+            {
+                Error($"Unable to reference {name} since it was not exported.", name.SourceStart);
+            }
+
+            return nameResolution;
         }
 
         ModuleScope LookupModuleScope(QualifiedName name)
         {
-            var moduleScope = ModuleScope;
-            foreach (var submoduleName in name.Name.SkipLast(1)) // Don't use the concrete name
+            ModuleScope moduleScope = ModuleScope;
+            var path = name.Name.SkipLast(1);
+            if (name.Name[0].Identifier == "root")
+            {
+                moduleScope = RootModuleScope;
+                path = path.Skip(1);
+            }
+
+            foreach (var submoduleName in path) // Don't use the concrete name
             {
                 if (moduleScope.SubmoduleScopes.ContainsKey(submoduleName.Identifier))
                 {
@@ -235,22 +254,29 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
 
             var baseName = name.ConcreteName.Identifier;
+            TypeDeclaration declaration = null;
             if (qualifiedModuleSope.TypeDeclarations.ContainsKey(baseName))
             {
-                var declaration = qualifiedModuleSope.TypeDeclarations[baseName];
+                declaration = qualifiedModuleSope.TypeDeclarations[baseName];
                 if (declaration.State == TypeDeclaration.ResolutionState.Resolving)
                 {
                     Error($"Circular type declaration detected while resolving type {baseName}", declaration.SourceStart);
-                    return StandardScope.ErrorDeclaration;
+                    declaration = StandardScope.ErrorDeclaration;
                 }
                 else if (declaration.State != TypeDeclaration.ResolutionState.Resolved)
                 {
                     ResolveTypeDeclarationSecondPass(declaration);
                 }
-                return declaration;
             }
 
-            return null;
+            if (qualifiedModuleSope != ModuleScope
+                && declaration != null
+                && !declaration.IsExported) // Foregin variable
+            {
+                Error($"Unable to reference {name} since it was not exported.", name.SourceStart);
+            }
+
+            return declaration;
         }
 
         VariableResolution AddVariableToCurrentScope(

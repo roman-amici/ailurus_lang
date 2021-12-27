@@ -912,6 +912,11 @@ namespace AilurusLang.Parsing.Parsers
         {
             var name = Consume(TokenType.Identifier, "Expected identifier after 'submodule'.");
 
+            if (name.Identifier == "root")
+            {
+                RaiseError(name, "Submodule can not have name 'root'.");
+            }
+
             Consume(TokenType.Semicolon, "Expected ';' after 'submodule'.");
             return new SubmoduleDeclaration()
             {

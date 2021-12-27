@@ -21,6 +21,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             Add("break");
             Add("continue");
             Add("return");
+            Add("foreach");
+            Add("in");
 
             // Values
             Add("null");
@@ -34,6 +36,10 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             Add("variant");
             Add("let");
 
+            // Expressions
+            Add("new");
+            Add("free");
+
             // Modifiers
             Add("static");
             Add("volatile");
@@ -46,7 +52,6 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             Add("module");
             Add("export");
             Add("import");
-            Add("from");
 
             // Misc
             Add("sizeOf");

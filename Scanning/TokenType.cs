@@ -88,6 +88,7 @@ namespace AilurusLang.Scanning
         Var,
 
         // Modules
+        Library,
         Submodule,
         Export,
         Import,
