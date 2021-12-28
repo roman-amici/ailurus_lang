@@ -449,7 +449,35 @@ namespace AilurusLang.Interpreter.TreeWalker
                 ExpressionType.VarCast => EvalVarCast((VarCast)expr),
                 ExpressionType.Tuple => EvalTupleLiteral((TupleExpression)expr),
                 ExpressionType.TupleDestructure => EvalTupleDestructure((TupleDestructure)expr),
+                ExpressionType.VariantConstructor => EvalVariantConstructor((VariantConstructor)expr),
                 _ => throw new NotImplementedException(),
+            };
+        }
+
+        AilurusValue EvalVariantConstructor(VariantConstructor expr)
+        {
+            var memberType = expr.MemberType;
+            AilurusValue value = null;
+            if (memberType.InnerType is TupleType)
+            {
+                var members = new List<AilurusValue>();
+                foreach (var expression in expr.Arguments)
+                {
+                    members.Add(EvalExpression(expression).ByValue());
+                }
+
+                value = new TupleInstance(members, false);
+            }
+            else if (!(memberType.InnerType is EmptyVariantMemberType))
+            {
+                value = EvalExpression(expr.Arguments[0]).ByValue();
+            }
+
+            return new VariantInstance()
+            {
+                VariantType = expr.DataType as VariantType,
+                VariantMemberType = expr.MemberType,
+                Value = new MemoryLocation() { Value = value },
             };
         }
 

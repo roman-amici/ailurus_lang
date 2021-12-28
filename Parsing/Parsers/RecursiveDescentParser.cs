@@ -296,11 +296,30 @@ namespace AilurusLang.Parsing.Parsers
             var qualifiedName = MatchQualifiedName();
             if (qualifiedName != null)
             {
-                return new Variable()
+                if (Match(TokenType.DollarSign))
                 {
-                    Name = qualifiedName,
-                    SourceStart = qualifiedName.SourceStart
-                };
+                    var variantMemberName = Consume(TokenType.Identifier, "Expected identifier after '$'.");
+                    List<ExpressionNode> argumentList = null;
+                    if (Match(TokenType.LeftParen))
+                    {
+                        argumentList = ArgumentList();
+                    }
+
+                    return new VariantConstructor()
+                    {
+                        VariantName = qualifiedName,
+                        MemberName = variantMemberName,
+                        Arguments = argumentList
+                    };
+                }
+                else
+                {
+                    return new Variable()
+                    {
+                        Name = qualifiedName,
+                        SourceStart = qualifiedName.SourceStart
+                    };
+                }
             }
 
             if (Match(TokenType.If))
@@ -313,7 +332,7 @@ namespace AilurusLang.Parsing.Parsers
                 return ArrayLiteral();
             }
 
-            RaiseError(Peek, "Unexpected token");
+            RaiseError(Peek, "Unexpected token.");
             return null;
         }
 
@@ -524,9 +543,8 @@ namespace AilurusLang.Parsing.Parsers
             return Call();
         }
 
-        ExpressionNode ArgumentList(ExpressionNode callee)
+        List<ExpressionNode> ArgumentList()
         {
-            var callStart = Previous;
             var argumentList = new List<ExpressionNode>();
             if (!Check(TokenType.RightParen))
             {
@@ -536,15 +554,9 @@ namespace AilurusLang.Parsing.Parsers
                 } while (Match(TokenType.Comma));
             }
 
-            var callEnd = Consume(TokenType.RightParen, "Expected ')' after function arguments.");
+            Consume(TokenType.RightParen, "Expected ')' after arguments.");
 
-            return new Call()
-            {
-                Callee = callee,
-                ArgumentList = argumentList,
-                SourceStart = callStart,
-                RightParen = callEnd
-            };
+            return argumentList;
         }
 
         ExpressionNode Call()
@@ -555,7 +567,16 @@ namespace AilurusLang.Parsing.Parsers
             {
                 if (Match(TokenType.LeftParen))
                 {
-                    expr = ArgumentList(expr); //Embed the callee expression in the Call Expression
+                    var callStart = Previous;
+                    var argumentList = ArgumentList();
+                    var callEnd = Previous;
+                    expr = new Call()
+                    {
+                        Callee = expr, //Embed the callee expression in the Call Expression
+                        ArgumentList = argumentList,
+                        SourceStart = callStart,
+                        RightParen = callEnd
+                    };
                 }
                 else if (Match(TokenType.Dot))
                 {
@@ -1129,6 +1150,8 @@ namespace AilurusLang.Parsing.Parsers
                 {
                     RaiseError(parenOpen, "Tuple type must have at least 2 elements.");
                 }
+
+                Consume(TokenType.RightParen, "Mismatched parenthesis.");
 
                 baseType = new TupleTypeName()
                 {

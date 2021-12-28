@@ -179,6 +179,8 @@ namespace AilurusLang.DataType
     {
         public string VariantName { get; set; }
         public Dictionary<string, VariantMemberType> Members { get; set; }
+
+        public override string DataTypeName => VariantName;
     }
 
     public class VariantMemberType : AilurusDataType
@@ -186,5 +188,10 @@ namespace AilurusLang.DataType
         public string MemberName { get; set; }
         public AilurusDataType InnerType { get; set; }
         public int MemberIndex { get; set; }
+    }
+
+    public class EmptyVariantMemberType : AilurusDataType
+    {
+        public static readonly EmptyVariantMemberType Instance = new EmptyVariantMemberType();
     }
 }

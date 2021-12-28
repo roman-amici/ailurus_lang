@@ -27,6 +27,7 @@ namespace AilurusLang.Parsing.AST
         VarCast,
         Tuple,
         TupleDestructure,
+        VariantConstructor
     }
 
     public abstract class ExpressionNode : ASTNode
@@ -209,4 +210,16 @@ namespace AilurusLang.Parsing.AST
         public TupleExpression AssignmentTarget { get; set; }
         public ExpressionNode Value { get; set; }
     }
+
+    public class VariantConstructor : ExpressionNode
+    {
+        public VariantConstructor() : base(ExpressionType.VariantConstructor) { }
+
+        public QualifiedName VariantName { get; set; }
+        public Token MemberName { get; set; }
+        public List<ExpressionNode> Arguments { get; set; }
+
+        public VariantMemberType MemberType { get; set; }
+    }
+
 }

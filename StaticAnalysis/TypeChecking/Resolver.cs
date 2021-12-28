@@ -201,16 +201,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             return nameResolution;
         }
 
-        ModuleScope LookupModuleScope(QualifiedName name)
+        ModuleScope TraverseSubmodules(IEnumerable<Token> path, ModuleScope moduleScope)
         {
-            ModuleScope moduleScope = ModuleScope;
-            var path = name.Name.SkipLast(1);
-            if (name.Name[0].Identifier == "root")
-            {
-                moduleScope = RootModuleScope;
-                path = path.Skip(1);
-            }
-
             foreach (var submoduleName in path) // Don't use the concrete name
             {
                 if (moduleScope.SubmoduleScopes.ContainsKey(submoduleName.Identifier))
@@ -224,6 +216,19 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
 
             return moduleScope;
+        }
+
+        ModuleScope LookupModuleScope(QualifiedName name)
+        {
+            ModuleScope moduleScope = ModuleScope;
+            var path = name.Name.SkipLast(1);
+            if (name.Name[0].Identifier == "root")
+            {
+                moduleScope = RootModuleScope;
+                path = path.Skip(1);
+            }
+
+            return TraverseSubmodules(path, moduleScope);
         }
 
         AilurusDataType LookupTypeByName(QualifiedName name)
@@ -241,19 +246,20 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         TypeDeclaration LookupTypeDeclarationByName(QualifiedName name)
         {
+            var baseName = name.ConcreteName.Identifier;
             // This works because all the types in the standard scope are reserved words so we can't alias them
-            if (StandardScope.TypeDeclarations.ContainsKey(name.ConcreteName.Identifier))
+            if (StandardScope.TypeDeclarations.ContainsKey(baseName))
             {
-                return StandardScope.TypeDeclarations[name.ConcreteName.Identifier];
+                return StandardScope.TypeDeclarations[baseName];
             }
 
             var qualifiedModuleSope = LookupModuleScope(name); // Scope not found
-            if (qualifiedModuleSope == null)
+
+            if (qualifiedModuleSope is null)
             {
                 return null;
             }
 
-            var baseName = name.ConcreteName.Identifier;
             TypeDeclaration declaration = null;
             if (qualifiedModuleSope.TypeDeclarations.ContainsKey(baseName))
             {
@@ -642,6 +648,11 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 }
                 return true;
             }
+            else if (lhsType is VariantType lhsVariant && rhsType is VariantMemberType rhsMember)
+            {
+                return lhsVariant.Members.ContainsKey(rhsMember.MemberName)
+                    && TypesAreEqual(lhsVariant.Members[rhsMember.MemberName], rhsMember);
+            }
             else if (lhsType is NumericType lhsNumeric && rhsType is NumericType rhsNumeric)
             {
                 return CanCoerceNumericType(lhsNumeric, rhsNumeric);
@@ -947,9 +958,95 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     return ResolveTupleLiteral((TupleExpression)expr);
                 case ExpressionType.TupleDestructure:
                     return ResolveTupleDestructure((TupleDestructure)expr);
+                case ExpressionType.VariantConstructor:
+                    return ResolveVariantConstructor((VariantConstructor)expr);
                 default:
                     throw new NotImplementedException();
             }
+        }
+
+        AilurusDataType ResolveVariantConstructor(VariantConstructor expr)
+        {
+            var constructorType = LookupTypeByName(expr.VariantName);
+            expr.DataType = ErrorType.Instance;
+
+            if (constructorType == null)
+            {
+                Error($"Unable to find variant type '{expr.VariantName}'.", expr.VariantName.SourceStart);
+                return expr.DataType;
+            }
+
+            if (!(constructorType is VariantType variantType))
+            {
+                Error($"Type '{expr.VariantName}' is not a variant type.", expr.VariantName.SourceStart);
+                return expr.DataType;
+            }
+
+            // This affects what type we infer
+            expr.DataType = variantType;
+
+            var memberName = expr.MemberName;
+            if (!variantType.Members.ContainsKey(memberName.Identifier))
+            {
+                Error($"Variant '{variantType.VariantName} does not contain member '{memberName.Identifier}'.", memberName);
+                return expr.DataType;
+            }
+
+            var memberType = variantType.Members[memberName.Identifier];
+            expr.MemberType = memberType;
+
+            var argCount = expr.Arguments?.Count ?? 0;
+
+            var expectsArguments = !(memberType.InnerType is EmptyVariantMemberType);
+            if (expectsArguments && argCount == 0)
+            {
+                Error($"Expected arguments for '{memberName.Identifier}' but found none.", memberName);
+                return expr.DataType;
+            }
+
+            if (!expectsArguments && argCount > 0)
+            {
+                Error($"Variant member '{memberName.Identifier}' takes no arguments.", memberName);
+                return expr.DataType;
+            }
+
+            if (expectsArguments)
+            {
+                if (memberType.InnerType is TupleType tuple)
+                {
+                    if (argCount != tuple.MemberTypes.Count)
+                    {
+                        Error($"Incorrect number of argument for variant constructor '{memberName.Identifier}'.", memberName);
+                        return expr.DataType;
+                    }
+
+                    for (var i = 0; i < expr.Arguments.Count; i++)
+                    {
+                        var argumentType = ResolveExpression(expr.Arguments[i]);
+                        var tupleMemberType = tuple.MemberTypes[i];
+                        if (!CanAssignTo(tupleMemberType, argumentType, false, out string errorMessage))
+                        {
+                            Error(errorMessage, expr.Arguments[i].SourceStart);
+                        }
+                    }
+                }
+                else
+                {
+                    if (argCount > 1)
+                    {
+                        Error("$Incorrect number of arguments given for variant constructor.", memberName);
+                        return expr.DataType;
+                    }
+
+                    var argumentType = ResolveExpression(expr.Arguments[0]);
+                    if (!CanAssignTo(memberType.InnerType, argumentType, false, out string errorMessage))
+                    {
+                        Error(errorMessage, expr.Arguments[0].SourceStart);
+                    }
+                }
+            }
+
+            return expr.DataType;
         }
 
         AilurusDataType ResolveTupleAssignmentTarget(TupleExpression tuple)
@@ -2121,7 +2218,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             foreach (var member in v.Members)
             {
                 // Defaults to unsigned int by default
-                AilurusDataType dataType = IntType.InstanceSigned;
+                AilurusDataType dataType = EmptyVariantMemberType.Instance;
 
                 var memberName = member.MemberName.Identifier;
                 if (memberTypes.ContainsKey(memberName))

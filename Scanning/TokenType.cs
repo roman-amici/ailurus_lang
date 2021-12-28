@@ -19,6 +19,7 @@ namespace AilurusLang.Scanning
         QuestionMark, // ?
         Star, // *
         At, // @
+        DollarSign, // $
 
         //One or two char tokens
         Bang, // !

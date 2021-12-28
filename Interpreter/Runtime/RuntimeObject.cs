@@ -385,7 +385,7 @@ namespace AilurusLang.Interpreter.Runtime
 
         public override string ToString()
         {
-            var inner = string.Join(',', Elements);
+            var inner = string.Join(',', Elements.Select(m => m.Value));
             return $"({inner})";
         }
 
@@ -399,5 +399,44 @@ namespace AilurusLang.Interpreter.Runtime
         public MemoryLocation GetElementAddress(int i) => Elements[i];
 
         public override void MarkInvalid() => Elements.ForEach(v => v.MarkInvalid());
+
+        public override AilurusValue ByValue()
+        {
+            return new TupleInstance(Elements.Select(m => m.Value.ByValue()), false);
+        }
+    }
+
+    public class VariantInstance : AilurusValue
+    {
+        public VariantType VariantType { get; set; }
+        public VariantMemberType VariantMemberType { get; set; }
+
+        public int Index { get; set; }
+
+        public MemoryLocation Value { get; set; }
+
+        public override string TypeName => $"{VariantType.DataTypeName}${VariantMemberType.MemberName}";
+
+        public override bool AssertType(AilurusDataType dataType)
+        {
+            if (dataType is VariantType v)
+            {
+                return v == VariantType;
+            }
+            else if (dataType is VariantMemberType m)
+            {
+                return m == VariantMemberType;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public override string ToString()
+        {
+
+            return $"{TypeName}({Value.Value})";
+        }
     }
 }

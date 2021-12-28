@@ -18,9 +18,13 @@ namespace AilurusLang.Parsing.AST
 
         public List<Token> Name { get; set; }
 
-        public Token SourceStart => Name[0];
+        public Token SourceStart => Name.Count > 0 ? Name[0] : null;
 
-        public Token ConcreteName => Name[^1];
+        public Token ConcreteName => Name.Count > 0 ? Name[^1] : null;
+
+        public Token VariantName => Name.Count > 1 ? Name[^2] : null;
+
+        public Token VariantMemberName => ConcreteName;
 
         public override string ToString()
         {
