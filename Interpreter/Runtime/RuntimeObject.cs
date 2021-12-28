@@ -162,7 +162,10 @@ namespace AilurusLang.Interpreter.Runtime
         public override void MarkInvalid()
         {
             IsValid = false;
-            Value.MarkInvalid();
+            if (Value != null)
+            {
+                Value.MarkInvalid();
+            }
         }
     }
 

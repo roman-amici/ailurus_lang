@@ -174,4 +174,17 @@ namespace AilurusLang.DataType
             }
         }
     }
+
+    public class VariantType : AilurusDataType
+    {
+        public string VariantName { get; set; }
+        public Dictionary<string, VariantMemberType> Members { get; set; }
+    }
+
+    public class VariantMemberType : AilurusDataType
+    {
+        public string MemberName { get; set; }
+        public AilurusDataType InnerType { get; set; }
+        public int MemberIndex { get; set; }
+    }
 }

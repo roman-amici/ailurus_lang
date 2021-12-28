@@ -883,6 +883,22 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
         }
 
+        int? IntegralLiteral(ExpressionNode expr)
+        {
+            if (expr is Literal l && l.DataType is IntegralType)
+            {
+                return (int)l.Value;
+            }
+            else if (expr is VarCast v)
+            {
+                return IntegralLiteral(v.Expr);
+            }
+            else
+            {
+                return null;
+            }
+        }
+
         bool IsAssignmentTarget(ExpressionNode expr)
         {
             // TODO: support nested destructuring
@@ -2089,6 +2105,80 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             return true;
         }
 
+        bool ResolveVariantDeclarationFirstPass(VariantDeclaration v)
+        {
+            var variantName = v.VariantName.Identifier;
+            if (!CanDeclareName(variantName))
+            {
+                Error($"Typename {variantName} is already declared in this module.", v.VariantName);
+                return false;
+            }
+
+            var currentIndex = 0;
+            var indices = new HashSet<int>();
+            var memberTypes = new Dictionary<string, VariantMemberType>();
+
+            foreach (var member in v.Members)
+            {
+                // Defaults to unsigned int by default
+                AilurusDataType dataType = IntType.InstanceSigned;
+
+                var memberName = member.MemberName.Identifier;
+                if (memberTypes.ContainsKey(memberName))
+                {
+                    Error($"Variant already contains member with name '{memberName}'.", member.MemberName);
+                    return false;
+                }
+
+                if (member.TypeName != null)
+                {
+                    dataType = new PlaceholderType() { TypeName = member.TypeName };
+                }
+
+                if (member.Index != null)
+                {
+                    var indexValue = IntegralLiteral(member.Index);
+                    if (indexValue is null)
+                    {
+                        Error($"Variant index value must be an integer.", member.Index.SourceStart);
+                        return false;
+                    }
+                    else
+                    {
+                        currentIndex = (int)indexValue;
+                    }
+                }
+
+                if (indices.Contains(currentIndex))
+                {
+                    Error($"Variant with index {currentIndex} already exists for {variantName}.", member.SourceStart);
+                    return false;
+                }
+
+                var memberType = new VariantMemberType()
+                {
+                    MemberName = memberName,
+                    InnerType = dataType,
+                    MemberIndex = currentIndex
+                };
+
+                memberTypes.Add(memberName, memberType);
+                indices.Add(currentIndex);
+                currentIndex++;
+            }
+
+            var variantType = new VariantType()
+            {
+                VariantName = variantName,
+                Members = memberTypes
+            };
+            v.DataType = variantType;
+
+            ModuleScope.TypeDeclarations.Add(variantName, v);
+
+            return true;
+        }
+
         void ResolveTypeDeclarationFirstPass(TypeDeclaration declaration)
         {
             bool added;
@@ -2099,6 +2189,10 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             else if (declaration is TypeAliasDeclaration a)
             {
                 added = ResolveAliasDeclarationFirstPass(a);
+            }
+            else if (declaration is VariantDeclaration v)
+            {
+                added = ResolveVariantDeclarationFirstPass(v);
             }
             else
             {
@@ -2118,9 +2212,17 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 ResolveStructDeclarationSecondPass(s);
 
             }
+            else if (declaration is VariantDeclaration v)
+            {
+                ResolveVariantDeclarationSecondPass(v);
+            }
             else if (declaration is TypeAliasDeclaration a)
             {
                 ResolveAliasDeclarationSecondPass(a);
+            }
+            else
+            {
+                throw new NotImplementedException();
             }
         }
 
@@ -2150,7 +2252,6 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             var structType = (StructType)s.DataType;
             foreach (var kvp in structType.Definitions)
             {
-
                 if (kvp.Value is PlaceholderType placeholder)
                 {
                     ResolvePlaceholder(placeholder);
@@ -2178,6 +2279,27 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
 
             s.State = TypeDeclaration.ResolutionState.Resolved;
+        }
+
+        void ResolveVariantDeclarationSecondPass(VariantDeclaration v)
+        {
+            v.State = TypeDeclaration.ResolutionState.Resolving;
+            var variantType = v.DataType as VariantType;
+
+            // Resolve the placeholder types
+            foreach (var member in variantType.Members.Values)
+            {
+                if (member.InnerType is PlaceholderType p)
+                {
+                    member.InnerType = ResolvePlaceholder(p);
+                    if (member.InnerType is ErrorType)
+                    {
+                        Error($"Unable to resolve type '{p.TypeName}'.", p.TypeName.Name.SourceStart);
+                    }
+                }
+            }
+
+            v.State = TypeDeclaration.ResolutionState.Resolved;
         }
 
         void ResolveModuleVariableDeclarations(ModuleVariableDeclaration declaration)

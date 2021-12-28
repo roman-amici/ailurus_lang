@@ -50,6 +50,19 @@ namespace AilurusLang.Parsing.AST
         public List<(Token, TypeName)> Fields { get; set; }
     }
 
+    public class VariantDeclaration : TypeDeclaration
+    {
+        public Token VariantName { get; set; }
+        public List<VariantMemberDeclaration> Members { get; set; }
+    }
+
+    public class VariantMemberDeclaration : Declaration
+    {
+        public Token MemberName { get; set; }
+        public TypeName TypeName { get; set; }
+        public ExpressionNode Index { get; set; }
+    }
+
     public class ModuleVariableDeclaration : Declaration
     {
         public LetStatement Let { get; set; }

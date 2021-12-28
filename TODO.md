@@ -8,8 +8,8 @@
  4. ~~Add Struct Declarations~~
    - ~~Add struct field reference syntax and semantics~~
  5. ~~Add Type alias Declarations~~
- 6. Add Module resolution
-   - 'this' and 'super' in module names
+ 6. ~~Add Module resolution~~
+   - 'root' and 'super' in module names
  7. ~~Pointer semantics (without arithmetic)~~.
  8. ~~Mutability semantics for pointers.~~
  9. ~~Array syntax and semantics.~~
@@ -27,6 +27,7 @@
  20. Constant Expressions
  21. Function pointers as static types
  21. Import variable renaming
+ 22. Type Casting
 
 ## Front End Cleanup
 1. Synchronization

@@ -899,6 +899,10 @@ namespace AilurusLang.Parsing.Parsers
             {
                 declaration = SubmoduleDeclaration();
             }
+            else if (Match(TokenType.Variant))
+            {
+                declaration = VariantDeclaration();
+            }
             else
             {
                 RaiseError(Peek, $"Unexpected token found '{Peek.Lexeme}'.");
@@ -906,6 +910,50 @@ namespace AilurusLang.Parsing.Parsers
 
             declaration.IsExported = isExported;
             return declaration;
+        }
+
+        VariantDeclaration VariantDeclaration()
+        {
+            var keyword = Previous;
+
+            var name = Consume(TokenType.Identifier, "Expected identifier name after 'variant'.");
+
+            Consume(TokenType.LeftBrace, "Expected '{' after variant name.");
+
+            var members = new List<VariantMemberDeclaration>();
+            do
+            {
+                var memberName = Consume(TokenType.Identifier, "Expected variant name.");
+
+                TypeName typeName = null;
+                if (Match(TokenType.Colon))
+                {
+                    typeName = TypeName();
+                }
+
+                ExpressionNode index = null;
+                if (Match(TokenType.Equal))
+                {
+                    index = Primary();
+                }
+
+                members.Add(new VariantMemberDeclaration()
+                {
+                    MemberName = memberName,
+                    TypeName = typeName,
+                    Index = index,
+                    SourceStart = memberName
+                });
+            } while (Match(TokenType.Comma));
+
+            Consume(TokenType.RightBrace, "Expected '}' after variant member.");
+
+            return new VariantDeclaration()
+            {
+                VariantName = name,
+                Members = members,
+                SourceStart = keyword
+            };
         }
 
         SubmoduleDeclaration SubmoduleDeclaration()
