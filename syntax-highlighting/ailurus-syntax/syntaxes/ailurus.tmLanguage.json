@@ -3,7 +3,13 @@
 	"name": "Ailurus",
 	"patterns": [
 		{
+			"include" : "#qualified-name"
+		},
+		{
 			"include": "#function-return-type"
+		},
+		{
+			"include" : "#type-annotation"
 		},
 		{
 			"include": "#keywords"
@@ -43,7 +49,7 @@
 		"keywords": {
 			"patterns": [{
 				"name": "keyword.control.ailurus",
-				"match": "\\b(if|while|for|return|else|break|continue|foreach|do|match)\\b"
+				"match": "\\b(if|while|for|return|else|break|continue|foreach|do|match|then)\\b"
 			},
 			{
 				"name" : "keyword.other.ailurus",
@@ -142,7 +148,7 @@
 		"function-return-type" : 
 		{
 			"patterns" : [{
-					"match" :"(->)\\s+(var\\s+)?\\[([a-zA-Z][a-zA-Z0-9_]*)((\\s+(ptr|varptr))*)\\s*\\]((\\s+(ptr|varptr))*)",
+					"match" :"(->)\\s*(var\\s+)?\\[([a-zA-Z][a-zA-Z0-9_]*)((\\s+(ptr|varptr))*)\\s*\\]((\\s+(ptr|varptr))*)",
 					"captures" : {
 						"2" : {"name" : "storage.type.modifier.ailurus"},
 						"3" : {"name" : "storage.type.ailurus"},
@@ -151,14 +157,73 @@
 					}
 				},
 				{
+					"match" : "(->)\\s*\\(((([a-zA-Z][a-zA-Z0-9_]*)((\\s+(ptr|varptr))*)\\s*,\\s*)+)\\s*([a-zA-Z][a-zA-Z0-9_]*)((\\s+(ptr|varptr))*)\\)((\\s+(ptr|varptr))*)",
+					"captures" : {
+						"2" : {"name" : "storage.type.ailurus"},
+						"3" : {"name" : "storage.type.ailurus"},
+						"4" : {"name" : "storage.type.ailurus"},
+						"5" : {"name" : "storage.type.ailurus"},
+						"6" : {"name" : "storage.type.ailurus"},
+						"7" : {"name" : "storage.type.ailurus"},
+						"8" : {"name" : "storage.type.ailurus"},
+						"9" : {"name" : "storage.type.ailurus"},
+						"10" : {"name" : "storage.type.ailurus"},
+						"11" : {"name" : "storage.type.ailurus"},
+						"12" : {"name" : "storage.type.ailurus"}
+					}
+				},
+				{
 				"match" : "(->)\\s+([a-zA-Z][a-zA-Z0-9_]*)((\\s+(ptr|varptr))*)",
 				"captures" :{
 					"2" : {"name" : "storage.type.ailurus"},
 					"3" : {"name" : "storage.type.modifier.ailurus"}
-
 				}
 			}]
-		}
+		},
+		"type-annotation" : 
+		{
+				"patterns" : [{
+					"match" :"(:)\\s*(var\\s+)?\\[([a-zA-Z][a-zA-Z0-9_]*)((\\s+(ptr|varptr))*)\\s*\\]((\\s+(ptr|varptr))*)",
+					"captures" : {
+						"2" : {"name" : "storage.type.modifier.ailurus"},
+						"3" : {"name" : "storage.type.ailurus"},
+						"4" : {"name" : "storage.type.modifier.ailurus"},
+						"7" : {"name" : "storage.type.modifier.ailurus"}
+					}
+				},
+				{
+					"match" : "(:)\\s*\\(((([a-zA-Z][a-zA-Z0-9_]*)((\\s+(ptr|varptr))*)\\s*,\\s*)+)\\s*([a-zA-Z][a-zA-Z0-9_]*)((\\s+(ptr|varptr))*)\\)((\\s+(ptr|varptr))*)",
+					"captures" : {
+						"2" : {"name" : "storage.type.ailurus"},
+						"3" : {"name" : "storage.type.ailurus"},
+						"4" : {"name" : "storage.type.ailurus"},
+						"5" : {"name" : "storage.type.ailurus"},
+						"6" : {"name" : "storage.type.ailurus"},
+						"7" : {"name" : "storage.type.ailurus"},
+						"8" : {"name" : "storage.type.ailurus"},
+						"9" : {"name" : "storage.type.ailurus"},
+						"10" : {"name" : "storage.type.ailurus"},
+						"11" : {"name" : "storage.type.ailurus"},
+						"12" : {"name" : "storage.type.ailurus"}
+					}
+				},
+				{
+				"match" : "(:)\\s*([a-zA-Z][a-zA-Z0-9_]*)((\\s+(ptr|varptr))*)",
+				"captures" :{
+					"2" : {"name" : "storage.type.ailurus"},
+					"3" : {"name" : "storage.type.modifier.ailurus"}
+				}
+			}]
+		},
+		"qualified-name" :
+		{
+			"patterns" : [{
+				"match" : "([a-zA-Z][a-zA-Z0-9_]*)(::)",
+				"captures": {
+					"1" : {"name" : "variable.name"}
+				}
+			}]
+		}	
 	},
 	"scopeName": "source.ailurus"
 }

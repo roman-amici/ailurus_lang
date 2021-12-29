@@ -1,4 +1,22 @@
-/* sdfsdf */
+submodule sub;
+library std;
+
+import sub::x::y::{z,t};
+
+struct x {
+    y : int,
+    z : [int ptr] ptr,
+    t : (int,char,int ptr) ptr
+}
+
+variant v {
+    x,
+    z : (int,int)
+}
+
+/* A multiline
+ * comment
+ */
 
 // This is a comment
 
@@ -8,10 +26,19 @@ fn main() -> int varptr ptr varptr
 {
     while (true)
     {
-        
+        break;
     }
 
-    let c : int ptr;
+    array_type(3);
+
+    foreach (let x in [1,2,3])
+    {
+        continue;
+    }
+
+    if x < 2 then 4 else 6;
+
+    let c : int ptr = addrOf x;
 
     let pi = 3.1415;
     let n = 2;
@@ -27,7 +54,12 @@ fn main() -> int varptr ptr varptr
     let x = new [1,2,3];
 }
 
-fn array_type() -> var [int ptr] ptr ptr
+fn array_type(x : int) -> var [int ptr] ptr ptr
+{
+    
+}
+
+fn tuple_return_type() -> (int  ptr,  int ptr ptr ptr, int ptr ptr)  ptr  ptr
 {
     
 }
