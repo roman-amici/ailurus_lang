@@ -159,7 +159,16 @@ namespace AilurusLang.Scanning.BasicScanner
                 case '?': return CreateToken(TokenType.QuestionMark);
                 case '*': return CreateToken(TokenType.Star);
                 case '@': return CreateToken(TokenType.At);
-                case '$': return CreateToken(TokenType.DollarSign);
+                case '$':
+                    if (Match('$'))
+                    {
+                        return CreateToken(TokenType.DollarDollar);
+                    }
+                    else
+                    {
+                        return CreateToken(TokenType.DollarSign);
+                    }
+
                 case '!':
                     if (Match('='))
                     {

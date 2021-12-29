@@ -9,7 +9,7 @@
    - ~~Add struct field reference syntax and semantics~~
  5. ~~Add Type alias Declarations~~
  6. ~~Add Module resolution~~
-   - 'root' and 'super' in module names
+   - ~~'root'~~ and 'super' in module names
  7. ~~Pointer semantics (without arithmetic)~~.
  8. ~~Mutability semantics for pointers.~~
  9. ~~Array syntax and semantics.~~
@@ -18,7 +18,9 @@
  12. ~~String and char types~~
  13. ~~Foreach loop on arrays and strings.~~
  14. ~~Heap allocation (new, free)~~
- 15. Variants
+ 15. ~~Variants~~
+    - Variant Element Access
+    - Variant Destructuring
  16. ~~Address of array elements~~
   - ~~Address of array elements in foreach loop~~
  17. ~~Tuples~~
@@ -28,6 +30,9 @@
  21. Function pointers as static types
  21. Import variable renaming
  22. Type Casting
+ 23. Varargs via variants
+ 24. Cleanup datatypes
+  - More number constant types
 
 ## Front End Cleanup
 1. Synchronization
@@ -66,6 +71,7 @@
  6. Proc macros?
 
 ## Infrastructure
- 1. VSCode Syntax highlighting
+ 1. ~~VSCode Syntax highlighting~~
+  - Fix issue with tuple type highlighting
  2. VSCode language server
  3. Build system and package manager

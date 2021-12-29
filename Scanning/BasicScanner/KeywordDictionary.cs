@@ -52,6 +52,10 @@ namespace AilurusLang.Scanning.BasicScanner
             // Array Operators
             Add("lenOf", TokenType.LenOf);
 
+            // Type Casting
+            Add("is", TokenType.Is);
+            Add("as", TokenType.As);
+
             // Memory Operators
             Add("sizeOf", TokenType.SizeOf);
             Add("addrOf", TokenType.AddrOf);

@@ -960,9 +960,45 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     return ResolveTupleDestructure((TupleDestructure)expr);
                 case ExpressionType.VariantConstructor:
                     return ResolveVariantConstructor((VariantConstructor)expr);
+                case ExpressionType.VariantMemberAccess:
+                    return ResolveVariantMemberAccess((VariantMemberAccess)expr);
                 default:
                     throw new NotImplementedException();
             }
+        }
+
+        AilurusDataType ResolveVariantMemberAccess(VariantMemberAccess expr)
+        {
+            var callSiteType = ResolveExpression(expr.CallSite);
+            expr.DataType = ErrorType.Instance;
+
+            if (!(callSiteType is VariantType variantType))
+            {
+                Error($"Expected varaint type but instead found type '{callSiteType.DataTypeName}'.", expr.CallSite.SourceStart);
+                return expr.DataType;
+            }
+
+            var memberName = expr.MemberName;
+            if (!variantType.Members.ContainsKey(memberName.Identifier))
+            {
+                Error($"Varaint of type '{variantType.DataTypeName}' does not contain a member named '{memberName.Identifier}'.", expr.MemberName);
+                return expr.DataType;
+            }
+
+            var memberType = variantType.Members[memberName.Identifier];
+            expr.MemberIndex = memberType.MemberIndex;
+
+            if (memberType.InnerType is EmptyVariantMemberType)
+            {
+                expr.IndexAsData = true;
+                expr.DataType = IntType.InstanceSigned;
+            }
+            else
+            {
+                expr.DataType = memberType.InnerType;
+            }
+
+            return expr.DataType;
         }
 
         AilurusDataType ResolveVariantConstructor(VariantConstructor expr)

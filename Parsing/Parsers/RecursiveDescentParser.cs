@@ -578,6 +578,17 @@ namespace AilurusLang.Parsing.Parsers
                         RightParen = callEnd
                     };
                 }
+                else if (Match(TokenType.DollarDollar))
+                {
+                    var dollarDollar = Previous;
+                    var memberName = Consume(TokenType.Identifier, "Expected identifier after '$$'.");
+                    expr = new VariantMemberAccess()
+                    {
+                        CallSite = expr,
+                        MemberName = memberName,
+                        SourceStart = dollarDollar
+                    };
+                }
                 else if (Match(TokenType.Dot))
                 {
                     var dot = Previous;
@@ -610,9 +621,52 @@ namespace AilurusLang.Parsing.Parsers
             return expr;
         }
 
-        ExpressionNode Factor()
+        ExpressionNode VariantCheck()
         {
             var left = Unary();
+            while (Match(TokenType.Is))
+            {
+                var op = Previous;
+
+                var variantName = ConsumeQualifiedName();
+                Consume(TokenType.DollarSign, "Expected '$' after variant name.");
+                var memberName = Consume(TokenType.Identifier, "Expected identifer after '$'.");
+
+                left = new VariantCheck()
+                {
+                    VariantName = variantName,
+                    MemberName = memberName,
+                    Left = left,
+                    SourceStart = op
+                };
+            }
+
+            return left;
+        }
+
+        ExpressionNode TypeCast()
+        {
+            var left = VariantCheck();
+
+            while (Match(TokenType.As))
+            {
+                var op = Previous;
+                var typeName = TypeName();
+
+                left = new TypeCast()
+                {
+                    Left = left,
+                    TypeName = typeName,
+                    SourceStart = op
+                };
+            }
+
+            return left;
+        }
+
+        ExpressionNode Factor()
+        {
+            var left = TypeCast();
 
             while (Match(
                 TokenType.Star,
@@ -621,7 +675,7 @@ namespace AilurusLang.Parsing.Parsers
             ))
             {
                 var op = Previous;
-                var right = Unary();
+                var right = TypeCast();
                 left = new Binary()
                 {
                     Operator = op,

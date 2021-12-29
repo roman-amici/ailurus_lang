@@ -450,8 +450,28 @@ namespace AilurusLang.Interpreter.TreeWalker
                 ExpressionType.Tuple => EvalTupleLiteral((TupleExpression)expr),
                 ExpressionType.TupleDestructure => EvalTupleDestructure((TupleDestructure)expr),
                 ExpressionType.VariantConstructor => EvalVariantConstructor((VariantConstructor)expr),
+                ExpressionType.VariantMemberAccess => EvalVariantMemberAccess((VariantMemberAccess)expr),
                 _ => throw new NotImplementedException(),
             };
+        }
+
+        AilurusValue EvalVariantMemberAccess(VariantMemberAccess access)
+        {
+            var callSite = EvalExpression(access.CallSite).GetAs<VariantInstance>();
+
+            if (callSite.Index != access.MemberIndex)
+            {
+                throw new RuntimeError("Access variant member with wrong index.", access.SourceStart);
+            }
+
+            if (access.IndexAsData)
+            {
+                return new DynamicValue() { Value = callSite.Index };
+            }
+            else
+            {
+                return callSite.Value.Value.ByValue();
+            }
         }
 
         AilurusValue EvalVariantConstructor(VariantConstructor expr)
@@ -478,6 +498,7 @@ namespace AilurusLang.Interpreter.TreeWalker
                 VariantType = expr.DataType as VariantType,
                 VariantMemberType = expr.MemberType,
                 Value = new MemoryLocation() { Value = value },
+                Index = memberType.MemberIndex
             };
         }
 

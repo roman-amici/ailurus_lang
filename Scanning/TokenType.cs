@@ -40,7 +40,8 @@ namespace AilurusLang.Scanning
         Carrot, // ^
         CarrotCarrot, // ^^
         Slash, // /
-        ColonColon,
+        ColonColon, // ::
+        DollarDollar, // $$
 
         //Literals
         Identifier, // Alphanumeric, not starting with a number. Includes _
@@ -105,6 +106,10 @@ namespace AilurusLang.Scanning
         New,
 
         DebugPrint,
+
+        // Type Casting
+        Is,
+        As,
 
         // Semantic Types
         EOF,
