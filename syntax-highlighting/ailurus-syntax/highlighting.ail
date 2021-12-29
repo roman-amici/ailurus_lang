@@ -4,7 +4,7 @@
 
 type myType : z;
 
-fn main() -> int
+fn main() -> int varptr ptr varptr 
 {
     while (true)
     {
@@ -27,7 +27,7 @@ fn main() -> int
     let x = new [1,2,3];
 }
 
-fn array_type() -> fsdf int
+fn array_type() -> var [int ptr] ptr ptr
 {
     
 }
