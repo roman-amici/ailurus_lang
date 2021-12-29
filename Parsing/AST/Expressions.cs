@@ -237,8 +237,10 @@ namespace AilurusLang.Parsing.AST
     {
         public VariantCheck() : base(ExpressionType.VariantCheck) { }
         public ExpressionNode Left { get; set; }
-        public QualifiedName VariantName { get; set; }
         public Token MemberName { get; set; }
+
+        // Computed Properties
+        public int MemberIndex { get; set; }
     }
 
     public class VariantMemberAccess : ExpressionNode

@@ -627,14 +627,10 @@ namespace AilurusLang.Parsing.Parsers
             while (Match(TokenType.Is))
             {
                 var op = Previous;
-
-                var variantName = ConsumeQualifiedName();
-                Consume(TokenType.DollarSign, "Expected '$' after variant name.");
-                var memberName = Consume(TokenType.Identifier, "Expected identifer after '$'.");
+                var memberName = Consume(TokenType.Identifier, "Expected identifer after 'is'.");
 
                 left = new VariantCheck()
                 {
-                    VariantName = variantName,
                     MemberName = memberName,
                     Left = left,
                     SourceStart = op
@@ -1433,11 +1429,22 @@ namespace AilurusLang.Parsing.Parsers
             if (Match(TokenType.LeftBrace))
             {
                 var thenStatements = BlockStatement();
-                BlockStatement elseStatements = null;
+                IfStatement elseStatements = null;
                 if (Match(TokenType.Else))
                 {
-                    Consume(TokenType.LeftBrace, "Expected '{' after 'else'");
-                    elseStatements = BlockStatement();
+                    if (Match(TokenType.If))
+                    {
+                        elseStatements = IfStatement() as IfStatement;
+                    }
+                    else
+                    {
+                        Consume(TokenType.LeftBrace, "Expected '{' after 'else'");
+                        var elseBlockStatement = BlockStatement();
+                        elseStatements = new IfStatement()
+                        {
+                            ThenStatements = elseBlockStatement
+                        };
+                    }
                 }
 
                 return new IfStatement()

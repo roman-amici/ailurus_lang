@@ -367,14 +367,20 @@ namespace AilurusLang.Interpreter.TreeWalker
 
         void EvalIfStatement(IfStatement ifStatement)
         {
-            var pred = EvalExpression(ifStatement.Predicate);
-            if (pred.GetAs<bool>())
+            // Else branch with no elseif is always 'true'
+            bool pred = true;
+            if (ifStatement.Predicate != null)
+            {
+                pred = EvalExpression(ifStatement.Predicate).GetAs<bool>();
+            }
+
+            if (pred)
             {
                 EvalBlockStatement(ifStatement.ThenStatements);
             }
             else if (ifStatement.ElseStatements != null)
             {
-                EvalBlockStatement(ifStatement.ElseStatements);
+                EvalIfStatement(ifStatement.ElseStatements);
             }
         }
 
@@ -451,8 +457,18 @@ namespace AilurusLang.Interpreter.TreeWalker
                 ExpressionType.TupleDestructure => EvalTupleDestructure((TupleDestructure)expr),
                 ExpressionType.VariantConstructor => EvalVariantConstructor((VariantConstructor)expr),
                 ExpressionType.VariantMemberAccess => EvalVariantMemberAccess((VariantMemberAccess)expr),
+                ExpressionType.VariantCheck => EvalVariantCheck((VariantCheck)expr),
                 _ => throw new NotImplementedException(),
             };
+        }
+
+        AilurusValue EvalVariantCheck(VariantCheck check)
+        {
+            var left = EvalExpression(check.Left).GetAs<VariantInstance>();
+
+            var equal = left.Index == check.MemberIndex;
+
+            return new DynamicValue() { Value = equal };
         }
 
         AilurusValue EvalVariantMemberAccess(VariantMemberAccess access)

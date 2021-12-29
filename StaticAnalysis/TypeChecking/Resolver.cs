@@ -962,9 +962,34 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     return ResolveVariantConstructor((VariantConstructor)expr);
                 case ExpressionType.VariantMemberAccess:
                     return ResolveVariantMemberAccess((VariantMemberAccess)expr);
+                case ExpressionType.VariantCheck:
+                    return ResolveVariantCheck((VariantCheck)expr);
                 default:
                     throw new NotImplementedException();
             }
+        }
+
+        AilurusDataType ResolveVariantCheck(VariantCheck expr)
+        {
+            var leftDataType = ResolveExpression(expr.Left);
+            expr.DataType = BooleanType.Instance;
+
+            if (!(leftDataType is VariantType variantType))
+            {
+                Error($"Expected variant type but instead found type '{leftDataType.DataTypeName}'.", expr.Left.SourceStart);
+                return expr.DataType;
+            }
+
+            var memberName = expr.MemberName;
+            if (!variantType.Members.ContainsKey(memberName.Identifier))
+            {
+                Error($"Varaint of type '{variantType.DataTypeName}' does not contain a member named '{memberName.Identifier}'.", expr.MemberName);
+                return expr.DataType;
+            }
+
+            expr.MemberIndex = variantType.Members[memberName.Identifier].MemberIndex;
+
+            return expr.DataType;
         }
 
         AilurusDataType ResolveVariantMemberAccess(VariantMemberAccess expr)
@@ -1950,17 +1975,22 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         void ResolveIfStatement(IfStatement ifStatement)
         {
-            var predicate = ResolveExpression(ifStatement.Predicate);
-
-            if (!(predicate is BooleanType))
+            // The "else" branch of an if statement is also an if statement. If
+            // its not an 'else if' branch, the predicate is null
+            if (ifStatement.Predicate != null)
             {
-                Error($"Expected if predicate to be of type {BooleanType.Instance.DataTypeName} but instead found type {predicate.DataTypeName}", ifStatement.SourceStart);
+                var predicate = ResolveExpression(ifStatement.Predicate);
+
+                if (!(predicate is BooleanType))
+                {
+                    Error($"Expected if predicate to be of type {BooleanType.Instance.DataTypeName} but instead found type {predicate.DataTypeName}", ifStatement.SourceStart);
+                }
             }
 
             ResolveBlock(ifStatement.ThenStatements);
             if (ifStatement.ElseStatements != null)
             {
-                ResolveBlock(ifStatement.ElseStatements);
+                ResolveIfStatement(ifStatement.ElseStatements);
             }
         }
 
@@ -2479,6 +2509,24 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
         }
 
+        bool ValidateReturnIfStatement(IfStatement statement)
+        {
+            if (statement == null)
+            {
+                return false;
+            }
+            if (statement.Predicate == null)
+            {
+                // Must have 'naked' else branch for all to return
+                return true;
+            }
+            else
+            {
+                return ValidateReturn(statement.ThenStatements.Statements)
+                    && ValidateReturnIfStatement(statement.ElseStatements);
+            }
+        }
+
         //Todo: Sparate pass for control flow analysis
         bool ValidateReturn(List<StatementNode> statements)
         {
@@ -2493,14 +2541,14 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 return true;
             }
 
-            var allBranchesReturn = false;
-            if (lastStatement is IfStatement i && i.ElseStatements != null)
+            if (lastStatement is IfStatement i)
             {
-                var thenReturns = ValidateReturn(i.ThenStatements.Statements);
-                var elseReturns = ValidateReturn(i.ElseStatements.Statements);
-                allBranchesReturn = thenReturns && elseReturns;
+                return ValidateReturnIfStatement(i);
             }
-            return allBranchesReturn;
+            else
+            {
+                return false;
+            }
         }
 
         void ResolveFunctionDeclarationSecondPass(FunctionDeclaration declaration)

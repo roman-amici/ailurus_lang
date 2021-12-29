@@ -85,7 +85,7 @@ namespace AilurusLang.Parsing.AST
         public IfStatement() : base(StatementType.If) { }
         public ExpressionNode Predicate { get; set; }
         public BlockStatement ThenStatements { get; set; }
-        public BlockStatement? ElseStatements { get; set; }
+        public IfStatement? ElseStatements { get; set; }
     }
 
     public abstract class ControlStatement : StatementNode
