@@ -1,0 +1,25 @@
+{
+    "name": "ailurus-syntax",
+    "displayName": "ailurus-syntax",
+    "description": "Syntax highlighting for ailurus-lang",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.63.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "ailurus",
+            "aliases": ["Ailurus", "ailurus"],
+            "extensions": [".ail"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "ailurus",
+            "scopeName": "source.ailurus",
+            "path": "./syntaxes/ailurus.tmLanguage.json"
+        }]
+    }
+}

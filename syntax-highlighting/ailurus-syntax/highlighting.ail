@@ -1,0 +1,33 @@
+/* sdfsdf */
+
+// This is a comment
+
+type myType : z;
+
+fn main() -> int
+{
+    while (true)
+    {
+        
+    }
+
+    let c : int ptr;
+
+    let pi = 3.1415;
+    let n = 2;
+
+    let x = "sdfsdf\n";
+    let c1 = 'x';
+    let c2 = '\n';
+
+    3 mod 4;
+
+    let y = z;
+
+    let x = new [1,2,3];
+}
+
+fn array_type() -> fsdf int
+{
+    
+}

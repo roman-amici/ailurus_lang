@@ -1,0 +1,163 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "Ailurus",
+	"patterns": [
+		{
+			"include": "#keywords"
+		},
+		{
+			"include" : "#language-constants"
+		},
+		{
+			"include": "#function-return-type"
+		},
+		{
+			"include": "#function-name"
+		},
+		{
+			"include" : "#let-binding"
+		},
+		{
+			"include" : "#type-alias"
+		},
+		{
+			"include": "#strings"
+		},
+		{
+			"include": "#multiline-comments"
+		},
+		{
+			"include" : "#single-line-comments"
+		},
+		{
+			"include" : "#char"
+		},
+		{
+			"include" : "#variable"
+		},
+		{
+			"include" : "#number"
+		}
+	],
+	"repository": {
+		"keywords": {
+			"patterns": [{
+				"name": "keyword.control.ailurus",
+				"match": "\\b(if|while|for|return|else|break|continue|foreach|do|match)\\b"
+			},
+			{
+				"name" : "keyword.other.ailurus",
+				"match" : "\\b(in|mod|lenOf|addrOf|varAddrOf|free|new|var|submodule|import|struct|variant|library)\\b"
+			},
+			{
+				"name" : "storage.modifier.ailurus",
+				"match" : "\\b(ptr|varptr)\\b"
+			}
+		]
+		},
+		"strings": {
+			"name": "string.quoted.double.ailurus",
+			"begin": "\"",
+			"end": "\"",
+			"patterns": [
+				{
+					"name": "constant.character.escape.ailurus",
+					"match": "\\\\."
+				}
+			]
+		},
+		"multiline-comments" :
+		{
+			"name" : "comment.block.ailurus",
+			"begin" : "/\\*",
+			"end" : "\\*/"
+		},
+		"single-line-comments" :
+		{
+			"name" : "comment.line.double-slash.ailurus",
+			"begin" : "//",
+			"end" : "\\n"
+		},
+		"char" :
+		{
+			"name" : "constant.character.ailurus",
+			"begin" : "'",
+			"end" : "'",
+			"patterns" : [
+				{
+					"name" : "constant.character.escape.ailurus",
+					"match" : "\\\\."
+				}
+			]
+		},
+		"number" : 
+		{
+			"patterns" : [{
+				"name" : "constant.numeric.ailurus",
+				"match" : "[0-9]+(\\.)?[0-9]*"
+			}]
+		},
+		"language-constants" :
+		{
+			"patterns" : [{
+				"name" : "constant.language.ailurus",
+				"match" : "\\b(true|false|null)\\b"
+			}]
+		},
+		"function-name" :
+		{
+			"patterns" : [{
+				"match" : "\\b(fn)\\s+([a-zA-Z][a-zA-Z0-9_]*)",
+				"captures": {
+					"1" : { "name" : "keyword.other.ailurus"},
+					"2" : { "name" : "entity.name.function.ailurus"}
+				}
+			}]
+		},
+		"type-alias" : 
+		{
+			"patterns" : [{
+				"match" : "\\b(type)\\s+([a-zA-z][a-zA-z0-9_]*)",
+				"captures": {
+					"1" : {"name" : "keyword.other.ailurus"},
+					"2" : {"name" : "entity.name.type.ailurus"}
+				}
+			}]
+		},
+		"let-binding" :
+		{
+			"patterns" : [{
+				"match" : "\\b(let)\\s+([a-zA-z][a-zA-z0-9_]*)",
+				"captures" : {
+					"1" : {"name" : "keyword.other.ailurus"},
+					"2" : {"name" : "variable.ailurus"}
+				}
+			}]
+		},
+		"variable" : 
+		{
+			"patterns" : [{
+				"match" : "\\b([a-zA-z][a-zA-z0-9_]*)\\b",
+				"captures" : {
+					"1" : {"name" : "variable.ailurus"}
+				}
+			}]
+		},
+		"function-return-type" : 
+		{
+			"patterns" : [{
+				"match" : "(->)\\s+([a-zA-z][a-zA-z0-9_]*)",
+				"captures" :{
+					"2" : {"name" : "storage.type.ailurus"}
+				}
+			},
+			{
+				"match" :"(->)\\s+\\[([a-zA-z][a-zA-z0-9_]*)\\]",
+				"captures" : {
+					"2" : {"name" : "storage.type.modifier.ailurus"}
+				}
+			}]
+		}
+	},
+	"scopeName": "source.ailurus"
+}
