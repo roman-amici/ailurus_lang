@@ -438,7 +438,7 @@ namespace AilurusLang.Parsing.Parsers
                 {
                     Consume(TokenType.Identifier, "Expected member name.");
                     var member = Previous;
-                    Consume(TokenType.Colon, "Expected ':' after member name.");
+                    Consume(TokenType.Equal, "Expected '=' after member name.");
                     var expression = Expression();
                     initializers.Add((member, expression));
                 } while (Match(TokenType.Comma));

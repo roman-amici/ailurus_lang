@@ -28,6 +28,10 @@ fn main() -> int varptr ptr varptr
     {
         break;
     }
+    let z = struct x {
+        y = 3,
+        z = c
+    }
 
     array_type(3);
 
