@@ -28,7 +28,7 @@ namespace AilurusLang.Scanning.BasicScanner
 
         bool IsAtEnd { get => Current >= Source.Length; }
         char CurrentChar { get => IsAtEnd ? '\0' : Source[Current]; }
-        char PreviousChar { get => Source[Current]; }
+        char PreviousChar { get => Source[Current - 1]; }
         char NextChar
         {
             get
@@ -427,12 +427,21 @@ namespace AilurusLang.Scanning.BasicScanner
                         Advance();
                     }
                 }
-                else if (PreviousChar == 'b' || PreviousChar == 'B')
+                else if (CurrentChar == 'b' || CurrentChar == 'B')
                 {
                     Advance();
                     while (CurrentChar == '0' || CurrentChar == '1')
                     {
                         Advance();
+                    }
+                }
+                else // Still consume a decimal if it starts with 0
+                {
+                    MatchInteger();
+
+                    if (Match('.'))
+                    {
+                        MatchInteger();
                     }
                 }
             }

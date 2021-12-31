@@ -31,8 +31,9 @@
  21. Import variable renaming
  22. Type Casting
  23. Varargs via variants
- 24. Cleanup datatypes
-  - More number constant types
+ 24. ~~Cleanup datatypes~~
+  - ~~More number constant types~~
+ 25. Add bitshift and op= operators
 
 ## Front End Cleanup
 1. Synchronization
@@ -73,5 +74,7 @@
 ## Infrastructure
  1. ~~VSCode Syntax highlighting~~
   - Fix issue with tuple type highlighting
+  - Add hex and binary highlighting
+  - Add is and as operators
  2. VSCode language server
  3. Build system and package manager
