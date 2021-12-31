@@ -1611,11 +1611,11 @@ namespace AilurusLang.Parsing.Parsers
         static readonly char[] BinaryChars = new char[] { 'b', 'B' };
 
         static readonly char[] IntegralTypeStringChars = new char[] { 'i', 'u' };
-        static readonly char[] TypeStringChars = new char[] { 'i', 'u', 'b' };
+        static readonly char[] TypeStringChars = new char[] { 'i', 'u', 'f' };
 
         (string, string) SplitNumericTypeString(string numericString, char[] splitOn)
         {
-            var index = numericString.IndexOfAny(IntegralTypeStringChars);
+            var index = numericString.IndexOfAny(splitOn);
 
             if (index > 0)
             {
@@ -1651,7 +1651,7 @@ namespace AilurusLang.Parsing.Parsers
                 else
                 {
                     numericBase = 10;
-                    (numericString, typeString) = SplitNumericTypeString(numericString, IntegralTypeStringChars);
+                    (numericString, typeString) = SplitNumericTypeString(numericString, TypeStringChars);
                 }
             }
 
