@@ -1607,30 +1607,61 @@ namespace AilurusLang.Parsing.Parsers
 
         #region Helper Functions
 
-        Literal DetermineNumberLiteral(Token token)
+        static readonly char[] HexChars = new char[] { 'x', 'X' };
+        static readonly char[] BinaryChars = new char[] { 'b', 'B' };
+
+        static readonly char[] IntegralTypeStringChars = new char[] { 'i', 'u' };
+        static readonly char[] TypeStringChars = new char[] { 'i', 'u', 'b' };
+
+        (string, string) SplitNumericTypeString(string numericString, char[] splitOn)
         {
-            if (token.Identifier.Contains("."))
+            var index = numericString.IndexOfAny(IntegralTypeStringChars);
+
+            if (index > 0)
             {
-                // For now, just use one int and one float type
-                var value = double.Parse(token.Identifier);
-                return new Literal()
-                {
-                    Value = value,
-                    DataType = DoubleType.Instance,
-                    SourceStart = token
-                };
+                return (numericString[..index], numericString[index..]);
             }
             else
             {
-                var value = int.Parse(token.Identifier);
-                var dataType = value >= 0 ? IntType.InstanceUnsigned : IntType.InstanceSigned;
-                return new Literal()
-                {
-                    Value = value,
-                    DataType = dataType,
-                    SourceStart = token
-                };
+                return (numericString, string.Empty);
             }
+
+        }
+
+        NumberLiteral DetermineNumberLiteral(Token token)
+        {
+            var numericString = token.Identifier;
+            string typeString;
+            int numericBase;
+
+            if (numericString.Contains('x') || numericString.Contains('X'))
+            {
+                // Keep the 0x prefix for the numeric parser's sake
+                numericBase = 16;
+                (numericString, typeString) = SplitNumericTypeString(numericString, IntegralTypeStringChars);
+            }
+            else
+            {
+                var split = numericString.Split(BinaryChars);
+                if (split.Length > 1)
+                {
+                    numericBase = 2;
+                    (numericString, typeString) = SplitNumericTypeString(split[1], IntegralTypeStringChars);
+                }
+                else
+                {
+                    numericBase = 10;
+                    (numericString, typeString) = SplitNumericTypeString(numericString, IntegralTypeStringChars);
+                }
+            }
+
+            return new NumberLiteral()
+            {
+                SourceStart = token,
+                Base = numericBase,
+                DataTypeString = typeString,
+                Number = numericString
+            };
         }
 
         #endregion

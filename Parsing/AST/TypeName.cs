@@ -50,14 +50,16 @@ namespace AilurusLang.Parsing.AST
     {
         public static readonly TypeName Void = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("void")) };
         public static readonly TypeName Bool = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("bool")) };
-        public static readonly TypeName Int = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("int")) };
-        public static readonly TypeName Byte = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("byte")) };
-        public static readonly TypeName Short = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("short")) };
-        public static readonly TypeName Ushort = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("ubyte")) };
-        public static readonly TypeName UByte = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("ushort")) };
-        public static readonly TypeName Uint = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("uint")) };
-        public static readonly TypeName Float = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("float")) };
-        public static readonly TypeName Double = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("double")) };
+        public static readonly TypeName I32 = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("i32")) };
+        public static readonly TypeName I8 = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("i8")) };
+        public static readonly TypeName I16 = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("i16")) };
+        public static readonly TypeName U16 = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("u16")) };
+        public static readonly TypeName U8 = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("u8")) };
+        public static readonly TypeName U32 = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("u32")) };
+        public static readonly TypeName F32 = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("f32")) };
+        public static readonly TypeName F64 = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("f64")) };
+        public static readonly TypeName USize = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("usize")) };
+        public static readonly TypeName ISize = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("isize")) };
         public static readonly TypeName StringName = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("string")) };
         public static readonly TypeName Char = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("char")) };
         public static readonly TypeName Error = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("error")) };

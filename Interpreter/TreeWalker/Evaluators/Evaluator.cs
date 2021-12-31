@@ -6,6 +6,7 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
     public abstract class Evaluator
     {
         public abstract AilurusValue EvalLiteral(Literal literal);
+        public abstract AilurusValue EvalNumberLiteral(NumberLiteral literal);
 
         public abstract AilurusValue EvalPlus(AilurusValue left, AilurusValue right, Binary b);
         public abstract AilurusValue EvalMinus(AilurusValue left, AilurusValue right, Binary b);

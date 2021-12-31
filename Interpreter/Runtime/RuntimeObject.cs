@@ -20,9 +20,21 @@ namespace AilurusLang.Interpreter.Runtime
             }
             else
             {
-                throw new RuntimeError($"Unable to convert struct to {nameof(T)}", 0, 0, string.Empty);
+                throw new RuntimeError($"Unable to convert {GetType()} to {typeof(T)}", 0, 0, string.Empty);
             }
         }
+
+        public virtual bool TryGetAs<T>(out T t)
+        {
+            t = default;
+            if (this is T tt)
+            {
+                t = tt;
+                return true;
+            }
+            return false;
+        }
+
         public abstract string TypeName { get; }
 
         public virtual AilurusValue ByValue()
@@ -33,6 +45,80 @@ namespace AilurusLang.Interpreter.Runtime
         public virtual void MarkInvalid()
         {
 
+        }
+    }
+
+    public class StaticValue<T> : AilurusValue
+    {
+        public override string TypeName => throw new NotImplementedException();
+
+        public T Value { get; set; }
+
+        public override V GetAs<V>()
+        {
+            if (Value is V v)
+            {
+                return v;
+            }
+            else
+            {
+                throw new RuntimeError($"Cannot convert {typeof(V)} to {typeof(T)}.");
+            }
+        }
+
+        public override bool TryGetAs<V>(out V v)
+        {
+            v = default;
+            if (Value is V vv)
+            {
+                v = vv;
+                return true;
+            }
+            return false;
+        }
+
+        public override bool AssertType(AilurusDataType dataType)
+        {
+            switch (dataType)
+            {
+                case Signed8Type _:
+                    return Value is sbyte;
+                case Unsigned8Type _:
+                    return Value is byte;
+                case Signed16Type _:
+                    return Value is short;
+                case Unsigned16Type _:
+                    return Value is ushort;
+                case Signed32Type _:
+                    return Value is int;
+                case Unsigned32Type _:
+                    return Value is uint;
+                case Signed64Type _:
+                    return Value is long;
+                case Unsigned64Type _:
+                    return Value is ulong;
+                case SignedSizeType _:
+                    return Value is long;
+                case UnsignedSizeType _:
+                    return Value is ulong;
+                case Float32Type _:
+                    return Value is float;
+                case Float64Type _:
+                    return Value is double;
+
+                case NullType _:
+                case null:
+                    return Value is null;
+
+                case BooleanType _:
+                    return Value is bool;
+
+                case CharType _:
+                    return Value is char;
+
+                default:
+                    throw new NotImplementedException();
+            }
         }
     }
 
@@ -48,6 +134,11 @@ namespace AilurusLang.Interpreter.Runtime
         }
 
         public static implicit operator DynamicValue(long l)
+        {
+            return new DynamicValue() { Value = l };
+        }
+
+        public static implicit operator DynamicValue(ulong l)
         {
             return new DynamicValue() { Value = l };
         }
@@ -78,35 +169,29 @@ namespace AilurusLang.Interpreter.Runtime
         {
             switch (dataType)
             {
-                case ByteType b:
-                    if (b.Unsigned)
-                    {
-                        return Value is uint;
-                    }
-                    else
-                    {
-                        return Value is int;
-                    }
-                case ShortType s:
-                    if (s.Unsigned)
-                    {
-                        return Value is uint;
-                    }
-                    else
-                    {
-                        return Value is int;
-                    }
-                case IntType i:
-                    if (i.Unsigned)
-                    {
-                        return Value is uint;
-                    }
-                    else
-                    {
-                        return Value is int;
-                    }
-                case FloatType _:
-                case DoubleType _:
+                case Signed8Type _:
+                    return Value is sbyte;
+                case Unsigned8Type _:
+                    return Value is byte;
+                case Signed16Type _:
+                    return Value is short;
+                case Unsigned16Type _:
+                    return Value is ushort;
+                case Signed32Type _:
+                    return Value is int;
+                case Unsigned32Type _:
+                    return Value is uint;
+                case Signed64Type _:
+                    return Value is long;
+                case Unsigned64Type _:
+                    return Value is ulong;
+                case SignedSizeType _:
+                    return Value is long;
+                case UnsignedSizeType _:
+                    return Value is ulong;
+                case Float32Type _:
+                    return Value is float;
+                case Float64Type _:
                     return Value is double;
 
                 case NullType _:

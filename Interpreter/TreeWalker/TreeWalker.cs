@@ -437,6 +437,7 @@ namespace AilurusLang.Interpreter.TreeWalker
             return expr.ExprType switch
             {
                 ExpressionType.Literal => Evaluator.EvalLiteral((Literal)expr),
+                ExpressionType.NumberLiteral => Evaluator.EvalNumberLiteral((NumberLiteral)expr),
                 ExpressionType.Unary => EvalUnary((Unary)expr),
                 ExpressionType.Binary => EvalBinary((Binary)expr),
                 ExpressionType.BinaryShortCircut => EvalBinaryShortCircut((BinaryShortCircut)expr),

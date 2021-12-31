@@ -28,6 +28,10 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         public bool HadError { get; set; }
 
+        // Configuration Options
+        // TODO: move to own file
+        public bool PreventSignificanceLoss { get; set; }
+
         public bool PlaceholdersResolved { get; set; }
 
         void ResetScope()
@@ -547,8 +551,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
             else if (t1 is IntegralType i1 && t2 is IntegralType i2)
             {
-                return t1.GetType() == t2.GetType()
-                    && i1.Unsigned == i2.Unsigned;
+                return i1.NumBytes == i2.NumBytes
+                    && i1.Signed == i2.Signed;
             }
             else
             {
@@ -689,50 +693,46 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         AilurusDataType GetNumericOperatorCoercion(AilurusDataType t1, AilurusDataType t2)
         {
-            if (!(t1 is NumericType) || !(t2 is NumericType))
+            if (!(t1 is NumericType n1) || !(t2 is NumericType n2))
             {
                 return ErrorType.Instance;
             }
 
-            if (t1 is DoubleType ||
-                t2 is DoubleType)
+            if (n1 is Float64Type ||
+                n2 is Float64Type)
             {
-                return DoubleType.Instance;
+                return Float64Type.Instance;
             }
 
-            if (t1 is FloatType ||
-                t2 is FloatType)
+            if (n1 is Float32Type ||
+                n2 is Float32Type)
             {
-                return FloatType.Instance;
+                return Float32Type.Instance;
             }
 
-            // Default to 'signed' if either type is signed
+            var i1 = n1 as IntegralType;
+            var i2 = n2 as IntegralType;
+
+            // Type is 'signed' if either type is signed
             var unsigned = true;
-            if (t1 is IntegralType i1)
-            {
-                unsigned = unsigned && i1.Unsigned;
-            }
-            if (t2 is IntegralType i2)
-            {
-                unsigned = unsigned && i2.Unsigned;
-            }
+            unsigned = unsigned && !i1.Signed;
+            unsigned = unsigned && !i2.Signed;
 
-            if (t1 is IntType ||
-                t2 is IntType)
+            if (i1.NumBytes == 8 || i2.NumBytes == 8)
             {
-                return unsigned ? IntType.InstanceUnsigned : IntType.InstanceSigned;
+                return unsigned ? (IntegralType)Unsigned64Type.Instance : Signed64Type.Instance;
             }
-
-            if (t1 is ShortType ||
-                t2 is ShortType)
+            else if (i1.NumBytes == 4 || i2.NumBytes == 4)
             {
-                return unsigned ? ShortType.InstanceUnsigned : ShortType.InstanceSigned;
+                return unsigned ? (IntegralType)Unsigned32Type.Instance : Signed32Type.Instance;
             }
-
-            if (t1 is ByteType ||
-                t2 is ByteType)
+            else if (i1.NumBytes == 2 || i2.NumBytes == 2)
             {
-                return unsigned ? ByteType.InstanceUnsigned : ByteType.InstanceSigned;
+                return unsigned ? (IntegralType)Unsigned16Type.Instance : Signed16Type.Instance;
+            }
+            else if (i1.NumBytes == 1 || i2.NumBytes == 1)
+            {
+                return unsigned ? (IntegralType)Unsigned8Type.Instance : Signed8Type.Instance;
             }
 
             // Unreachable
@@ -826,7 +826,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             {
                 if (type is IntegralType i)
                 {
-                    return i.Unsigned;
+                    return !i.Signed;
                 }
                 else
                 {
@@ -852,6 +852,128 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     return false;
                 }
             }
+        }
+
+        AilurusDataType ToSigned(IntegralType t)
+        {
+            if (t.Signed)
+            {
+                return t;
+            }
+
+            AilurusDataType type = ErrorType.Instance;
+
+            if (t is Unsigned8Type)
+            {
+                type = Signed16Type.Instance;
+            }
+            else if (t is Unsigned16Type)
+            {
+                type = Signed32Type.Instance;
+
+            }
+            else if (t is Unsigned32Type)
+            {
+                type = Signed64Type.Instance;
+            }
+            else if (t is Unsigned64Type)
+            {
+                if (!PreventSignificanceLoss)
+                {
+                    type = Signed64Type.Instance;
+                }
+            }
+            else if (t is UnsignedSizeType uz)
+            {
+                var sizeType = uz.NextLargestType();
+                if (sizeType != null)
+                {
+                    type = sizeType;
+                }
+            }
+
+            return type;
+        }
+
+        AilurusDataType NumberTypeFromLiteral(NumberLiteral literal)
+        {
+            bool hasDecimal = literal.Number.Contains(".");
+
+            NumericType explicitType = literal.DataTypeString switch
+            {
+                "u" => UnsignedSizeType.Instance,
+                "u8" => Unsigned8Type.Instance,
+                "u16" => Unsigned16Type.Instance,
+                "u32" => Unsigned32Type.Instance,
+                "u64" => Unsigned64Type.Instance,
+                "i" => SignedSizeType.Instance,
+                "i8" => Signed8Type.Instance,
+                "i16" => Signed16Type.Instance,
+                "i32" => Signed32Type.Instance,
+                "i64" => Signed64Type.Instance,
+                "f" => Float64Type.Instance,
+                "f32" => Float32Type.Instance,
+                "f64" => Float64Type.Instance,
+                _ => hasDecimal ? (NumericType)Float64Type.Instance : SignedSizeType.Instance
+            };
+
+            if (hasDecimal && explicitType is IntegralType)
+            {
+                Error("Unable to create number literal without loss of significance.", literal.SourceStart);
+                return ErrorType.Instance;
+            }
+
+            return explicitType;
+        }
+
+        object ConvertIntegral(
+            string number,
+            int numericBase,
+            uint size,
+            bool signed)
+        {
+            object value = null;
+            try
+            {
+                value = (size, signed) switch
+                {
+                    (1, true) => Convert.ToSByte(number, numericBase),
+                    (1, false) => Convert.ToByte(number, numericBase),
+                    (2, true) => Convert.ToInt16(number, numericBase),
+                    (2, false) => Convert.ToUInt16(number, numericBase),
+                    (4, true) => Convert.ToInt32(number, numericBase),
+                    (4, false) => Convert.ToUInt32(number, numericBase),
+                    (8, true) => Convert.ToInt64(number, numericBase),
+                    (8, false) => Convert.ToUInt64(number, numericBase),
+                    _ => null
+                };
+            }
+            catch (OverflowException) { }
+
+            return value;
+        }
+
+        object ParseNumberLiteral(
+            string number,
+            int numericBase,
+            AilurusDataType dataType)
+        {
+            if (dataType is IntegralType i)
+            {
+                return ConvertIntegral(number, numericBase, i.NumBytes, i is SignedIntegralType);
+            }
+            else if (dataType is FloatingPointType f)
+            {
+                if (f is Float32Type f32)
+                {
+                    return float.TryParse(number, out float f32v) ? (object)f32v : null;
+                }
+                else if (f is Float64Type f64)
+                {
+                    return double.TryParse(number, out double f64v) ? (object)f64v : null;
+                }
+            }
+            return null;
         }
 
         #endregion
@@ -923,6 +1045,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             {
                 case ExpressionType.Literal:
                     return ResolveLiteral((Literal)expr);
+                case ExpressionType.NumberLiteral:
+                    return ResolveNumberLiteral((NumberLiteral)expr);
                 case ExpressionType.Binary:
                 case ExpressionType.BinaryShortCircut:
                     return ResolveBinary((BinaryLike)expr);
@@ -1016,7 +1140,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             if (memberType.InnerType is EmptyVariantMemberType)
             {
                 expr.IndexAsData = true;
-                expr.DataType = IntType.InstanceSigned;
+                expr.DataType = SignedSizeType.Instance;
             }
             else
             {
@@ -1509,11 +1633,33 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 {
                     string _ => StringType.Instance,
                     bool _ => BooleanType.Instance,
-                    int _ => IntType.InstanceSigned,
-                    double _ => DoubleType.Instance,
                     char _ => CharType.Instance,
                     _ => throw new NotImplementedException(),
                 };
+            }
+
+            return literal.DataType;
+        }
+
+        AilurusDataType ResolveNumberLiteral(NumberLiteral literal)
+        {
+            // Already resolved
+            if (literal.DataType != null)
+            {
+                return literal.DataType;
+            }
+
+            literal.DataType = NumberTypeFromLiteral(literal);
+
+            if (!(literal.DataType is ErrorType))
+            {
+                literal.Value = ParseNumberLiteral(literal.Number, literal.Base, literal.DataType);
+
+                // If the parse failed its because it doesn't fit since we already know its parseable
+                if (literal.Value == null)
+                {
+                    Error($"Unable to fit {literal.Number} in literal of type {literal.DataType.DataTypeName}.", literal.SourceStart);
+                }
             }
 
             return literal.DataType;
@@ -1626,7 +1772,11 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     {
                         if (inner is IntegralType i)
                         {
-                            unary.DataType = i.SignedInstance;
+                            unary.DataType = ToSigned(i);
+                            if (unary.DataType is ErrorType)
+                            {
+                                Error($"Unable to negate type {i.DataTypeName} without significance loss.", unary.Operator);
+                            }
                         }
                         else
                         {
@@ -1657,7 +1807,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     break;
                 case TokenType.LenOf:
                     // TODO: replace with usize
-                    unary.DataType = IntType.InstanceUnsigned;
+                    unary.DataType = UnsignedSizeType.Instance;
                     if (!(inner is IArrayLikeType))
                     {
                         Error($"Expected type 'array' or 'string' for operator 'lenOf' but found type '{inner.DataTypeName}'.", unary.Expr.SourceStart);
@@ -2612,7 +2762,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
         {
             if (import.IsResolved)
             {
-                return; // TypeDeclaration that's already resolveds
+                return; // TypeDeclaration that's already resolved
             }
 
             var identifier = import.Name.ConcreteName.Identifier;

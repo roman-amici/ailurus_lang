@@ -30,7 +30,8 @@ namespace AilurusLang.Parsing.AST
         VariantConstructor,
         TypeCast,
         VariantCheck,
-        VariantMemberAccess
+        VariantMemberAccess,
+        NumberLiteral
     }
 
     public abstract class ExpressionNode : ASTNode
@@ -52,6 +53,17 @@ namespace AilurusLang.Parsing.AST
         public object Value { get; set; }
     }
 
+    public class NumberLiteral : ExpressionNode
+    {
+        public NumberLiteral() : base(ExpressionType.NumberLiteral) { }
+        public string DataTypeString { get; set; }
+        public string Number { get; set; }
+        // 10 for decimal, 2 for binary, 16 for hex etc
+        public int Base { get; set; }
+
+        // Computed property
+        public object Value { get; set; }
+    }
 
     public class Unary : ExpressionNode
     {

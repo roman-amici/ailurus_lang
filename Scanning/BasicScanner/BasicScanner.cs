@@ -24,10 +24,11 @@ namespace AilurusLang.Scanning.BasicScanner
 
         long LastLineBreak { get; set; } = 0;
 
-        bool HadError { get; set; } = false;
+        public bool HadError { get; set; } = false;
 
         bool IsAtEnd { get => Current >= Source.Length; }
         char CurrentChar { get => IsAtEnd ? '\0' : Source[Current]; }
+        char PreviousChar { get => Source[Current]; }
         char NextChar
         {
             get
@@ -375,6 +376,13 @@ namespace AilurusLang.Scanning.BasicScanner
             return '0' <= c && c <= '9';
         }
 
+        bool IsHexDigit(char c)
+        {
+            return IsDigit(c) ||
+                'a' <= c && c <= 'f' ||
+                'A' <= c && c <= 'F';
+        }
+
         bool IsAlphaNumeric(char c)
         {
             return IsAlpha(c) || IsDigit(c);
@@ -399,19 +407,49 @@ namespace AilurusLang.Scanning.BasicScanner
             }
         }
 
-        Token ScanNumber()
+        void MatchInteger()
         {
             while (IsDigit(CurrentChar))
             {
                 Advance();
             }
+        }
 
-            if (Match('.'))
+        Token ScanNumber()
+        {
+            if (PreviousChar == '0')
             {
-                while (IsDigit(CurrentChar))
+                if (CurrentChar == 'x' || CurrentChar == 'X')
                 {
                     Advance();
+                    while (IsHexDigit(CurrentChar))
+                    {
+                        Advance();
+                    }
                 }
+                else if (PreviousChar == 'b' || PreviousChar == 'B')
+                {
+                    Advance();
+                    while (CurrentChar == '0' || CurrentChar == '1')
+                    {
+                        Advance();
+                    }
+                }
+            }
+            else
+            {
+                MatchInteger();
+
+                if (Match('.'))
+                {
+                    MatchInteger();
+                }
+            }
+
+            // Consume number literal type specifier
+            if (Match('i') || Match('u') || Match('f'))
+            {
+                MatchInteger();
             }
 
             var numberString = Source.SubstringRange(Start, Current);

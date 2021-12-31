@@ -7,11 +7,6 @@ namespace AilurusLang.DataType
 
     public abstract class AilurusDataType
     {
-        public static bool IsNumeric(AilurusDataType t)
-        {
-            return t is NumericType;
-        }
-
         public virtual string DataTypeName { get => GetType().ToString(); }
     }
 
@@ -33,49 +28,140 @@ namespace AilurusLang.DataType
         public override string DataTypeName => "bool";
     }
 
-    public abstract class NumericType : AilurusDataType { }
+    public abstract class NumericType : AilurusDataType
+    {
+        public abstract uint NumBytes { get; }
+    }
 
     public abstract class IntegralType : NumericType
     {
-        public bool Unsigned { get; set; } = false;
+        public virtual bool Signed => false;
 
-        public abstract IntegralType SignedInstance { get; }
+        public static IntegralType IntegralTypeBySize(uint size, bool isSigned)
+        {
+            return size switch
+            {
+                1 => isSigned ? (IntegralType)Signed8Type.Instance : Unsigned8Type.Instance,
+                2 => isSigned ? (IntegralType)Signed16Type.Instance : Unsigned16Type.Instance,
+                4 => isSigned ? (IntegralType)Signed32Type.Instance : Unsigned32Type.Instance,
+                8 => isSigned ? (IntegralType)Signed64Type.Instance : Unsigned64Type.Instance,
+                _ => null
+            };
+        }
     }
 
-    public class ByteType : IntegralType
+    public abstract class SignedIntegralType : IntegralType
     {
-        public static readonly ByteType InstanceSigned = new ByteType();
-        public static readonly ByteType InstanceUnsigned = new ByteType() { Unsigned = true };
-        public override IntegralType SignedInstance => InstanceSigned;
-        public override string DataTypeName => Unsigned ? "ubyte" : "byte";
+        public override bool Signed => true;
     }
 
-    public class ShortType : IntegralType
+    public abstract class FloatingPointType : NumericType { }
+
+    public class Signed8Type : SignedIntegralType
     {
-        public static readonly ShortType InstanceSigned = new ShortType();
-        public static readonly ShortType InstanceUnsigned = new ShortType() { Unsigned = true };
-        public override IntegralType SignedInstance => InstanceSigned;
-        public override string DataTypeName => Unsigned ? "ushort" : "short";
+        public static readonly Signed8Type Instance = new Signed8Type();
+        public override string DataTypeName => "i8";
+
+        public override uint NumBytes => 1;
     }
 
-    public class IntType : IntegralType
+    public class Unsigned8Type : IntegralType
     {
-        public static readonly IntType InstanceSigned = new IntType();
-        public static readonly IntType InstanceUnsigned = new IntType() { Unsigned = true };
-        public override IntegralType SignedInstance => InstanceSigned;
-        public override string DataTypeName => Unsigned ? "uint" : "int";
+        public static readonly Unsigned8Type Instance = new Unsigned8Type();
+        public override string DataTypeName => "u8";
+
+        public override uint NumBytes => 1;
     }
 
-    public class FloatType : NumericType
+    public class Signed16Type : SignedIntegralType
     {
-        public readonly static FloatType Instance = new FloatType();
-        public override string DataTypeName => "float";
+        public static readonly Signed16Type Instance = new Signed16Type();
+        public override string DataTypeName => "i16";
+
+        public override uint NumBytes => 2;
     }
 
-    public class DoubleType : NumericType
+    public class Unsigned16Type : IntegralType
     {
-        public readonly static DoubleType Instance = new DoubleType();
-        public override string DataTypeName => "double";
+        public static readonly Unsigned16Type Instance = new Unsigned16Type();
+        public override string DataTypeName => "u16";
+
+        public override uint NumBytes => 2;
+    }
+
+    public class Signed32Type : SignedIntegralType
+    {
+        public static readonly Signed32Type Instance = new Signed32Type();
+        public override string DataTypeName => "i32";
+
+        public override uint NumBytes => 4;
+    }
+
+    public class Unsigned32Type : IntegralType
+    {
+        public static readonly Unsigned32Type Instance = new Unsigned32Type();
+        public override string DataTypeName => "u32";
+
+        public override uint NumBytes => 4;
+    }
+
+    public class Signed64Type : SignedIntegralType
+    {
+        public static readonly Signed64Type Instance = new Signed64Type();
+        public override string DataTypeName => "i64";
+
+        public override uint NumBytes => 8;
+    }
+
+    public class Unsigned64Type : IntegralType
+    {
+        public static readonly Unsigned64Type Instance = new Unsigned64Type();
+        public override string DataTypeName => "u64";
+
+        public override uint NumBytes => 8;
+    }
+
+    public class Float32Type : FloatingPointType
+    {
+        public readonly static Float32Type Instance = new Float32Type();
+        public override string DataTypeName => "f32";
+
+        public override uint NumBytes => 4;
+    }
+
+    public class Float64Type : FloatingPointType
+    {
+        public readonly static Float64Type Instance = new Float64Type();
+        public override string DataTypeName => "f64";
+
+        public override uint NumBytes => 8;
+    }
+
+    public class SignedSizeType : IntegralType
+    {
+        public static uint MachineSize { get; set; } = 8;
+        public readonly static SignedSizeType Instance = new SignedSizeType();
+
+        public override uint NumBytes => MachineSize;
+
+        public IntegralType NextLargestType()
+        {
+            var size = MachineSize * 2;
+            return IntegralTypeBySize(size, true);
+        }
+    }
+
+    public class UnsignedSizeType : IntegralType
+    {
+        public static uint MachineSize => SignedSizeType.MachineSize;
+        public readonly static UnsignedSizeType Instance = new UnsignedSizeType();
+
+        public override uint NumBytes => MachineSize;
+        public IntegralType NextLargestType()
+        {
+            var size = MachineSize * 2;
+            return IntegralTypeBySize(size, false);
+        }
     }
 
     public class StringType : AilurusDataType, IArrayLikeType
@@ -111,12 +197,8 @@ namespace AilurusLang.DataType
         {
             get
             {
-                var s = "fn(";
-                foreach (var argType in ArgumentTypes)
-                {
-                    s += argType.DataTypeName;
-                }
-                return s + ")" + ReturnType.DataTypeName;
+                var list = string.Join(",", ArgumentTypes.Select(a => a.DataTypeName));
+                return $"fn({list}) : {ReturnType.DataTypeName}";
             }
         }
     }

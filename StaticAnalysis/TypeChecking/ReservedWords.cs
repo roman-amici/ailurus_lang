@@ -78,6 +78,19 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             Add("bool");
             Add("string");
             Add("char");
+
+            Add("u8");
+            Add("i8");
+            Add("u16");
+            Add("i16");
+            Add("u32");
+            Add("i32");
+            Add("u64");
+            Add("i64");
+            Add("f32");
+            Add("f64");
+            Add("usize");
+            Add("isize");
         }
     }
 }

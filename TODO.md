@@ -19,7 +19,7 @@
  13. ~~Foreach loop on arrays and strings.~~
  14. ~~Heap allocation (new, free)~~
  15. ~~Variants~~
-    - Variant Element Access
+    - ~~Variant Element Access~~
     - Variant Destructuring
  16. ~~Address of array elements~~
   - ~~Address of array elements in foreach loop~~

@@ -10,22 +10,24 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
     {
         bool IsSignedInteger(AilurusValue value)
         {
-            return value.AssertType(IntType.InstanceSigned) ||
-                   value.AssertType(ShortType.InstanceSigned) ||
-                   value.AssertType(ByteType.InstanceSigned);
+            return value.AssertType(Signed64Type.Instance) ||
+                   value.AssertType(Signed32Type.Instance) ||
+                   value.AssertType(Signed16Type.Instance) ||
+                   value.AssertType(Signed8Type.Instance);
         }
 
         bool IsUnsignedInteger(AilurusValue value)
         {
-            return value.AssertType(IntType.InstanceUnsigned) ||
-                   value.AssertType(ShortType.InstanceUnsigned) ||
-                   value.AssertType(ByteType.InstanceUnsigned);
+            return value.AssertType(Unsigned64Type.Instance) ||
+                   value.AssertType(Unsigned32Type.Instance) ||
+                   value.AssertType(Unsigned16Type.Instance) ||
+                   value.AssertType(Unsigned8Type.Instance);
         }
 
         bool IsFloatingPoint(AilurusValue value)
         {
-            return value.AssertType(FloatType.Instance) ||
-                   value.AssertType(DoubleType.Instance);
+            return value.AssertType(Float32Type.Instance) ||
+                   value.AssertType(Float64Type.Instance);
         }
 
         bool IsNumeric(AilurusValue value)
@@ -37,7 +39,7 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
         {
             if (IsSignedInteger(inner))
             {
-                DynamicValue v = -inner.GetAs<int>();
+                DynamicValue v = -inner.GetAs<long>();
                 return v;
             }
             else if (IsFloatingPoint(inner))
@@ -81,35 +83,35 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
             DynamicValue result;
             if (IsSignedInteger(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<int>() + right.GetAs<int>();
+                result = left.GetAs<long>() + right.GetAs<long>();
             }
             else if (IsSignedInteger(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<int>() + right.GetAs<uint>();
+                result = left.GetAs<long>() + (long)right.GetAs<ulong>();
             }
             else if (IsUnsignedInteger(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<uint>() + right.GetAs<int>();
+                result = (long)left.GetAs<ulong>() + right.GetAs<long>();
             }
             else if (IsUnsignedInteger(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<uint>() + right.GetAs<uint>();
+                result = left.GetAs<ulong>() + right.GetAs<ulong>();
             }
             else if (IsUnsignedInteger(left) && IsFloatingPoint(right))
             {
-                result = left.GetAs<int>() + right.GetAs<double>();
+                result = left.GetAs<long>() + right.GetAs<double>();
             }
             else if (IsSignedInteger(left) && IsFloatingPoint(right))
             {
-                result = left.GetAs<uint>() + right.GetAs<double>();
+                result = left.GetAs<ulong>() + right.GetAs<double>();
             }
             else if (IsFloatingPoint(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<double>() + right.GetAs<int>();
+                result = left.GetAs<double>() + right.GetAs<long>();
             }
             else if (IsFloatingPoint(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<double>() + right.GetAs<uint>();
+                result = left.GetAs<double>() + right.GetAs<ulong>();
             }
             else if (IsFloatingPoint(left) && IsFloatingPoint(right))
             {
@@ -128,35 +130,35 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
             DynamicValue result;
             if (IsSignedInteger(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<int>() * right.GetAs<int>();
+                result = left.GetAs<long>() * right.GetAs<long>();
             }
             else if (IsSignedInteger(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<int>() * right.GetAs<uint>();
+                result = left.GetAs<long>() * (long)right.GetAs<ulong>();
             }
             else if (IsUnsignedInteger(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<uint>() * right.GetAs<int>();
+                result = (long)left.GetAs<ulong>() * right.GetAs<long>();
             }
             else if (IsUnsignedInteger(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<uint>() * right.GetAs<uint>();
+                result = left.GetAs<ulong>() * right.GetAs<ulong>();
             }
             else if (IsUnsignedInteger(left) && IsFloatingPoint(right))
             {
-                result = left.GetAs<int>() * right.GetAs<double>();
+                result = left.GetAs<long>() * right.GetAs<double>();
             }
             else if (IsSignedInteger(left) && IsFloatingPoint(right))
             {
-                result = left.GetAs<uint>() * right.GetAs<double>();
+                result = left.GetAs<ulong>() * right.GetAs<double>();
             }
             else if (IsFloatingPoint(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<double>() * right.GetAs<int>();
+                result = left.GetAs<double>() * right.GetAs<long>();
             }
             else if (IsFloatingPoint(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<double>() * right.GetAs<uint>();
+                result = left.GetAs<double>() * right.GetAs<ulong>();
             }
             else if (IsFloatingPoint(left) && IsFloatingPoint(right))
             {
@@ -175,35 +177,35 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
             DynamicValue result;
             if (IsSignedInteger(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<int>() / right.GetAs<int>();
+                result = left.GetAs<long>() / right.GetAs<long>();
             }
             else if (IsSignedInteger(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<int>() / right.GetAs<uint>();
+                result = left.GetAs<long>() / (long)right.GetAs<ulong>();
             }
             else if (IsUnsignedInteger(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<uint>() / right.GetAs<int>();
+                result = (long)left.GetAs<ulong>() / right.GetAs<long>();
             }
             else if (IsUnsignedInteger(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<uint>() / right.GetAs<uint>();
+                result = left.GetAs<ulong>() / right.GetAs<ulong>();
             }
             else if (IsUnsignedInteger(left) && IsFloatingPoint(right))
             {
-                result = left.GetAs<int>() / right.GetAs<double>();
+                result = left.GetAs<long>() / right.GetAs<double>();
             }
             else if (IsSignedInteger(left) && IsFloatingPoint(right))
             {
-                result = left.GetAs<uint>() / right.GetAs<double>();
+                result = left.GetAs<ulong>() / right.GetAs<double>();
             }
             else if (IsFloatingPoint(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<double>() / right.GetAs<int>();
+                result = left.GetAs<double>() / right.GetAs<long>();
             }
             else if (IsFloatingPoint(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<double>() / right.GetAs<uint>();
+                result = left.GetAs<double>() / right.GetAs<ulong>();
             }
             else if (IsFloatingPoint(left) && IsFloatingPoint(right))
             {
@@ -224,35 +226,35 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
             {
                 if (IsSignedInteger(left) && IsSignedInteger(right))
                 {
-                    result = left.GetAs<int>() == right.GetAs<int>();
+                    result = left.GetAs<long>() == right.GetAs<long>();
                 }
                 else if (IsSignedInteger(left) && IsUnsignedInteger(right))
                 {
-                    result = left.GetAs<int>() == right.GetAs<uint>();
+                    result = left.GetAs<long>() == (long)right.GetAs<ulong>();
                 }
                 else if (IsUnsignedInteger(left) && IsSignedInteger(right))
                 {
-                    result = left.GetAs<uint>() == right.GetAs<int>();
+                    result = (long)left.GetAs<ulong>() == right.GetAs<long>();
                 }
                 else if (IsUnsignedInteger(left) && IsUnsignedInteger(right))
                 {
-                    result = left.GetAs<uint>() == right.GetAs<uint>();
+                    result = left.GetAs<ulong>() == right.GetAs<ulong>();
                 }
                 else if (IsUnsignedInteger(left) && IsFloatingPoint(right))
                 {
-                    result = left.GetAs<int>() == right.GetAs<double>();
+                    result = left.GetAs<long>() == right.GetAs<double>();
                 }
                 else if (IsSignedInteger(left) && IsFloatingPoint(right))
                 {
-                    result = left.GetAs<uint>() == right.GetAs<double>();
+                    result = left.GetAs<ulong>() == right.GetAs<double>();
                 }
                 else if (IsFloatingPoint(left) && IsSignedInteger(right))
                 {
-                    result = left.GetAs<double>() == right.GetAs<int>();
+                    result = left.GetAs<double>() == right.GetAs<long>();
                 }
                 else if (IsFloatingPoint(left) && IsUnsignedInteger(right))
                 {
-                    result = left.GetAs<double>() == right.GetAs<uint>();
+                    result = left.GetAs<double>() == right.GetAs<ulong>();
                 }
                 else if (IsFloatingPoint(left) && IsFloatingPoint(right))
                 {
@@ -305,35 +307,35 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
             DynamicValue result;
             if (IsSignedInteger(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<int>() > right.GetAs<int>();
+                result = left.GetAs<long>() > right.GetAs<long>();
             }
             else if (IsSignedInteger(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<int>() > right.GetAs<uint>();
+                result = left.GetAs<long>() > (long)right.GetAs<ulong>();
             }
             else if (IsUnsignedInteger(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<uint>() > right.GetAs<int>();
+                result = (long)left.GetAs<ulong>() > right.GetAs<long>();
             }
             else if (IsUnsignedInteger(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<uint>() > right.GetAs<uint>();
+                result = left.GetAs<ulong>() > right.GetAs<ulong>();
             }
             else if (IsUnsignedInteger(left) && IsFloatingPoint(right))
             {
-                result = left.GetAs<int>() > right.GetAs<double>();
+                result = left.GetAs<long>() > right.GetAs<double>();
             }
             else if (IsSignedInteger(left) && IsFloatingPoint(right))
             {
-                result = left.GetAs<uint>() > right.GetAs<double>();
+                result = left.GetAs<ulong>() > right.GetAs<double>();
             }
             else if (IsFloatingPoint(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<double>() > right.GetAs<int>();
+                result = left.GetAs<double>() > right.GetAs<long>();
             }
             else if (IsFloatingPoint(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<double>() > right.GetAs<uint>();
+                result = left.GetAs<double>() > right.GetAs<ulong>();
             }
             else if (IsFloatingPoint(left) && IsFloatingPoint(right))
             {
@@ -351,35 +353,35 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
             DynamicValue result;
             if (IsSignedInteger(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<int>() >= right.GetAs<int>();
+                result = left.GetAs<long>() >= right.GetAs<long>();
             }
             else if (IsSignedInteger(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<int>() >= right.GetAs<uint>();
+                result = left.GetAs<long>() >= (long)right.GetAs<ulong>();
             }
             else if (IsUnsignedInteger(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<uint>() >= right.GetAs<int>();
+                result = (long)left.GetAs<ulong>() >= right.GetAs<long>();
             }
             else if (IsUnsignedInteger(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<uint>() >= right.GetAs<uint>();
+                result = left.GetAs<ulong>() >= right.GetAs<ulong>();
             }
             else if (IsUnsignedInteger(left) && IsFloatingPoint(right))
             {
-                result = left.GetAs<int>() >= right.GetAs<double>();
+                result = left.GetAs<long>() >= right.GetAs<double>();
             }
             else if (IsSignedInteger(left) && IsFloatingPoint(right))
             {
-                result = left.GetAs<uint>() >= right.GetAs<double>();
+                result = left.GetAs<ulong>() >= right.GetAs<double>();
             }
             else if (IsFloatingPoint(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<double>() >= right.GetAs<int>();
+                result = left.GetAs<double>() >= right.GetAs<long>();
             }
             else if (IsFloatingPoint(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<double>() >= right.GetAs<uint>();
+                result = left.GetAs<double>() >= right.GetAs<ulong>();
             }
             else if (IsFloatingPoint(left) && IsFloatingPoint(right))
             {
@@ -397,35 +399,35 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
             DynamicValue result;
             if (IsSignedInteger(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<int>() < right.GetAs<int>();
+                result = left.GetAs<long>() < right.GetAs<long>();
             }
             else if (IsSignedInteger(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<int>() < right.GetAs<uint>();
+                result = left.GetAs<long>() < (long)right.GetAs<ulong>();
             }
             else if (IsUnsignedInteger(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<uint>() < right.GetAs<int>();
+                result = (long)left.GetAs<ulong>() < right.GetAs<long>();
             }
             else if (IsUnsignedInteger(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<uint>() < right.GetAs<uint>();
+                result = left.GetAs<ulong>() < right.GetAs<ulong>();
             }
             else if (IsUnsignedInteger(left) && IsFloatingPoint(right))
             {
-                result = left.GetAs<int>() < right.GetAs<double>();
+                result = left.GetAs<long>() < right.GetAs<double>();
             }
             else if (IsSignedInteger(left) && IsFloatingPoint(right))
             {
-                result = left.GetAs<uint>() < right.GetAs<double>();
+                result = left.GetAs<ulong>() < right.GetAs<double>();
             }
             else if (IsFloatingPoint(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<double>() < right.GetAs<int>();
+                result = left.GetAs<double>() < right.GetAs<long>();
             }
             else if (IsFloatingPoint(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<double>() < right.GetAs<uint>();
+                result = left.GetAs<double>() < right.GetAs<ulong>();
             }
             else if (IsFloatingPoint(left) && IsFloatingPoint(right))
             {
@@ -443,35 +445,35 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
             DynamicValue result;
             if (IsSignedInteger(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<int>() <= right.GetAs<int>();
+                result = left.GetAs<long>() <= right.GetAs<long>();
             }
             else if (IsSignedInteger(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<int>() <= right.GetAs<uint>();
+                result = left.GetAs<long>() <= (long)right.GetAs<ulong>();
             }
             else if (IsUnsignedInteger(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<uint>() <= right.GetAs<int>();
+                result = (long)left.GetAs<ulong>() <= right.GetAs<long>();
             }
             else if (IsUnsignedInteger(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<uint>() <= right.GetAs<uint>();
+                result = left.GetAs<ulong>() <= right.GetAs<ulong>();
             }
             else if (IsUnsignedInteger(left) && IsFloatingPoint(right))
             {
-                result = left.GetAs<int>() <= right.GetAs<double>();
+                result = left.GetAs<long>() <= right.GetAs<double>();
             }
             else if (IsSignedInteger(left) && IsFloatingPoint(right))
             {
-                result = left.GetAs<uint>() <= right.GetAs<double>();
+                result = left.GetAs<ulong>() <= right.GetAs<double>();
             }
             else if (IsFloatingPoint(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<double>() <= right.GetAs<int>();
+                result = left.GetAs<double>() <= right.GetAs<long>();
             }
             else if (IsFloatingPoint(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<double>() <= right.GetAs<uint>();
+                result = left.GetAs<double>() <= right.GetAs<ulong>();
             }
             else if (IsFloatingPoint(left) && IsFloatingPoint(right))
             {
@@ -490,35 +492,35 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
             DynamicValue result;
             if (IsSignedInteger(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<int>() - right.GetAs<int>();
+                result = left.GetAs<long>() - right.GetAs<long>();
             }
             else if (IsSignedInteger(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<int>() - right.GetAs<uint>();
+                result = left.GetAs<long>() - (long)right.GetAs<ulong>();
             }
             else if (IsUnsignedInteger(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<uint>() - right.GetAs<int>();
+                result = (long)left.GetAs<ulong>() - right.GetAs<long>();
             }
             else if (IsUnsignedInteger(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<uint>() - right.GetAs<uint>();
+                result = left.GetAs<ulong>() - right.GetAs<ulong>();
             }
             else if (IsUnsignedInteger(left) && IsFloatingPoint(right))
             {
-                result = left.GetAs<int>() - right.GetAs<double>();
+                result = left.GetAs<long>() - right.GetAs<double>();
             }
             else if (IsSignedInteger(left) && IsFloatingPoint(right))
             {
-                result = left.GetAs<uint>() - right.GetAs<double>();
+                result = left.GetAs<ulong>() - right.GetAs<double>();
             }
             else if (IsFloatingPoint(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<double>() - right.GetAs<int>();
+                result = left.GetAs<double>() - right.GetAs<long>();
             }
             else if (IsFloatingPoint(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<double>() - right.GetAs<uint>();
+                result = left.GetAs<double>() - right.GetAs<ulong>();
             }
             else if (IsFloatingPoint(left) && IsFloatingPoint(right))
             {
@@ -537,19 +539,19 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
             DynamicValue result;
             if (IsSignedInteger(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<int>() & right.GetAs<int>();
+                result = left.GetAs<long>() & right.GetAs<long>();
             }
             else if (IsSignedInteger(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<int>() & right.GetAs<uint>();
+                result = left.GetAs<long>() & (long)right.GetAs<ulong>();
             }
             else if (IsUnsignedInteger(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<uint>() & right.GetAs<int>();
+                result = (long)left.GetAs<ulong>() & right.GetAs<long>();
             }
             else if (IsUnsignedInteger(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<uint>() & right.GetAs<uint>();
+                result = left.GetAs<ulong>() & right.GetAs<ulong>();
             }
             else
             {
@@ -564,19 +566,19 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
             DynamicValue result;
             if (IsSignedInteger(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<int>() | right.GetAs<int>();
+                result = left.GetAs<long>() | right.GetAs<long>();
             }
             else if (IsSignedInteger(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<int>() | right.GetAs<uint>();
+                result = left.GetAs<long>() | (long)right.GetAs<ulong>();
             }
             else if (IsUnsignedInteger(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<uint>() | right.GetAs<int>();
+                result = (long)left.GetAs<ulong>() | right.GetAs<long>();
             }
             else if (IsUnsignedInteger(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<uint>() | right.GetAs<uint>();
+                result = left.GetAs<ulong>() | right.GetAs<ulong>();
             }
             else
             {
@@ -591,19 +593,19 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
             DynamicValue result;
             if (IsSignedInteger(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<int>() ^ right.GetAs<int>();
+                result = left.GetAs<long>() ^ right.GetAs<long>();
             }
             else if (IsSignedInteger(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<int>() ^ right.GetAs<uint>();
+                result = left.GetAs<long>() ^ (long)right.GetAs<ulong>();
             }
             else if (IsUnsignedInteger(left) && IsSignedInteger(right))
             {
-                result = left.GetAs<uint>() ^ right.GetAs<int>();
+                result = (long)left.GetAs<ulong>() ^ right.GetAs<long>();
             }
             else if (IsUnsignedInteger(left) && IsUnsignedInteger(right))
             {
-                result = left.GetAs<uint>() ^ right.GetAs<uint>();
+                result = left.GetAs<ulong>() ^ right.GetAs<ulong>();
             }
             else
             {
@@ -618,16 +620,28 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
             return ValueFromDatatype(literal.Value, literal.DataType);
         }
 
+        public override AilurusValue EvalNumberLiteral(NumberLiteral literal)
+        {
+            return ValueFromDatatype(literal.Value, literal.DataType);
+        }
+
         AilurusValue ValueFromDatatype(object Value, AilurusDataType type)
         {
             switch (type)
             {
                 case BooleanType _:
-                case ByteType _:
-                case ShortType _:
-                case IntType _:
-                case FloatType _:
-                case DoubleType _:
+                case Signed8Type _:
+                case Signed16Type _:
+                case Signed32Type _:
+                case Signed64Type _:
+                case SignedSizeType _:
+                case Unsigned8Type _:
+                case Unsigned16Type _:
+                case Unsigned32Type _:
+                case Unsigned64Type _:
+                case UnsignedSizeType _:
+                case Float32Type _:
+                case Float64Type _:
                 case NullType _:
                 case CharType _:
                     return new DynamicValue() { Value = Value };
