@@ -163,6 +163,17 @@ namespace AilurusLang.Interpreter.Runtime
             return (T)Value;
         }
 
+        public override bool TryGetAs<T>(out T t)
+        {
+            t = default;
+            if (Value is T tt)
+            {
+                t = tt;
+                return true;
+            }
+            return false;
+        }
+
         public override string TypeName { get => Value.GetType().ToString(); }
 
         public override bool AssertType(AilurusDataType dataType)
