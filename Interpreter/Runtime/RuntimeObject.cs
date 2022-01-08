@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using AilurusLang.DataType;
+using AilurusLang.Interpreter.TreeWalker.Evaluators;
 using AilurusLang.Parsing.AST;
 
 namespace AilurusLang.Interpreter.Runtime
@@ -46,80 +47,8 @@ namespace AilurusLang.Interpreter.Runtime
         {
 
         }
-    }
 
-    public class StaticValue<T> : AilurusValue
-    {
-        public override string TypeName => throw new NotImplementedException();
-
-        public T Value { get; set; }
-
-        public override V GetAs<V>()
-        {
-            if (Value is V v)
-            {
-                return v;
-            }
-            else
-            {
-                throw new RuntimeError($"Cannot convert {typeof(V)} to {typeof(T)}.");
-            }
-        }
-
-        public override bool TryGetAs<V>(out V v)
-        {
-            v = default;
-            if (Value is V vv)
-            {
-                v = vv;
-                return true;
-            }
-            return false;
-        }
-
-        public override bool AssertType(AilurusDataType dataType)
-        {
-            switch (dataType)
-            {
-                case Signed8Type _:
-                    return Value is sbyte;
-                case Unsigned8Type _:
-                    return Value is byte;
-                case Signed16Type _:
-                    return Value is short;
-                case Unsigned16Type _:
-                    return Value is ushort;
-                case Signed32Type _:
-                    return Value is int;
-                case Unsigned32Type _:
-                    return Value is uint;
-                case Signed64Type _:
-                    return Value is long;
-                case Unsigned64Type _:
-                    return Value is ulong;
-                case SignedSizeType _:
-                    return Value is long;
-                case UnsignedSizeType _:
-                    return Value is ulong;
-                case Float32Type _:
-                    return Value is float;
-                case Float64Type _:
-                    return Value is double;
-
-                case NullType _:
-                case null:
-                    return Value is null;
-
-                case BooleanType _:
-                    return Value is bool;
-
-                case CharType _:
-                    return Value is char;
-
-                default:
-                    throw new NotImplementedException();
-            }
-        }
+        public virtual AilurusValue CastTo(AilurusDataType dataType) => throw new RuntimeError("Invalid typecast.");
     }
 
     public class DynamicValue : AilurusValue
@@ -129,6 +58,31 @@ namespace AilurusLang.Interpreter.Runtime
             return new DynamicValue() { Value = b };
         }
         public static implicit operator DynamicValue(int i)
+        {
+            return new DynamicValue() { Value = i };
+        }
+
+        public static implicit operator DynamicValue(short i)
+        {
+            return new DynamicValue() { Value = i };
+        }
+
+        public static implicit operator DynamicValue(ushort i)
+        {
+            return new DynamicValue() { Value = i };
+        }
+
+        public static implicit operator DynamicValue(sbyte i)
+        {
+            return new DynamicValue() { Value = i };
+        }
+
+        public static implicit operator DynamicValue(byte i)
+        {
+            return new DynamicValue() { Value = i };
+        }
+
+        public static implicit operator DynamicValue(uint i)
         {
             return new DynamicValue() { Value = i };
         }
@@ -158,9 +112,168 @@ namespace AilurusLang.Interpreter.Runtime
             return new DynamicValue() { Value = s };
         }
 
+        public override AilurusValue CastTo(AilurusDataType dataType)
+        {
+            DynamicValue value = null;
+            if (dataType is UnsignedSizeType || dataType is Unsigned64Type)
+            {
+                value = GetAs<ulong>();
+            }
+            else if (dataType is SignedSizeType || dataType is Signed64Type)
+            {
+                value = GetAs<long>();
+            }
+            else if (dataType is Signed32Type)
+            {
+                value = GetAs<int>();
+            }
+            else if (dataType is Unsigned32Type)
+            {
+                value = GetAs<uint>();
+            }
+            else if (dataType is Signed16Type)
+            {
+                value = GetAs<short>();
+            }
+            else if (dataType is Unsigned16Type)
+            {
+                value = GetAs<ushort>();
+            }
+            else if (dataType is Unsigned8Type)
+            {
+                value = GetAs<byte>();
+            }
+            else if (dataType is Signed8Type)
+            {
+                value = GetAs<sbyte>();
+            }
+            else if (dataType is Float64Type)
+            {
+                value = GetAs<double>();
+            }
+            else if (dataType is Float32Type)
+            {
+                value = GetAs<float>();
+            }
+
+            return value ?? base.CastTo(dataType);
+        }
+
         public override T GetAs<T>()
         {
-            return (T)Value;
+            object value = Value;
+
+            // C# will only allow you to cast an object to a type that the underlying value inherits
+            // Thus (int)Value will cause an excpetion where (int)(long)Value would not.
+            // Since we use "int" for array access we need a special case here.
+            if (DynamicValueEvaluator.IsNumeric(this))
+            {
+                DynamicValueEvaluator.Upcast(this, out long llong, out ulong lulong, out double ldouble, out int which);
+
+                var type = typeof(T);
+                if (typeof(long) == type)
+                {
+                    value = which switch
+                    {
+                        0 => (long)llong,
+                        1 => (long)lulong,
+                        2 => (long)ldouble,
+                        _ => throw new NotImplementedException()
+                    };
+                }
+                else if (typeof(ulong) == type)
+                {
+                    value = which switch
+                    {
+                        0 => (ulong)llong,
+                        1 => (ulong)lulong,
+                        2 => (ulong)ldouble,
+                        _ => throw new NotImplementedException()
+                    };
+                }
+                else if (typeof(int) == type)
+                {
+                    value = which switch
+                    {
+                        0 => (int)llong,
+                        1 => (int)lulong,
+                        2 => (int)ldouble,
+                        _ => throw new NotImplementedException()
+                    };
+                }
+                else if (typeof(uint) == type)
+                {
+                    value = which switch
+                    {
+                        0 => (uint)llong,
+                        1 => (uint)lulong,
+                        2 => (uint)ldouble,
+                        _ => throw new NotImplementedException()
+                    };
+                }
+                else if (typeof(short) == type)
+                {
+                    value = which switch
+                    {
+                        0 => (short)llong,
+                        1 => (short)lulong,
+                        2 => (short)ldouble,
+                        _ => throw new NotImplementedException()
+                    };
+                }
+                else if (typeof(ushort) == type)
+                {
+                    value = which switch
+                    {
+                        0 => (ushort)llong,
+                        1 => (ushort)lulong,
+                        2 => (ushort)ldouble,
+                        _ => throw new NotImplementedException()
+                    };
+                }
+                else if (typeof(sbyte) == type)
+                {
+                    value = which switch
+                    {
+                        0 => (sbyte)llong,
+                        1 => (sbyte)lulong,
+                        2 => (sbyte)ldouble,
+                        _ => throw new NotImplementedException()
+                    };
+                }
+                else if (typeof(byte) == type)
+                {
+                    value = which switch
+                    {
+                        0 => (byte)llong,
+                        1 => (byte)lulong,
+                        2 => (byte)ldouble,
+                        _ => throw new NotImplementedException()
+                    };
+                }
+                else if (typeof(double) == type)
+                {
+                    value = which switch
+                    {
+                        0 => (double)llong,
+                        1 => (double)lulong,
+                        2 => (double)ldouble,
+                        _ => throw new NotImplementedException()
+                    };
+                }
+                else if (typeof(float) == type)
+                {
+                    value = which switch
+                    {
+                        0 => (float)llong,
+                        1 => (float)lulong,
+                        2 => (float)ldouble,
+                        _ => throw new NotImplementedException()
+                    };
+                }
+            }
+
+            return (T)value;
         }
 
         public override bool TryGetAs<T>(out T t)

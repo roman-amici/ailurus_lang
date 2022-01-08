@@ -28,6 +28,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 { "void", new BaseTypeDeclaration() {TypeName = StandardTypeNames.Void, DataType = VoidType.Instance}},
                 { "string", new BaseTypeDeclaration() {TypeName = StandardTypeNames.StringName, DataType = StringType.Instance}},
                 { "char", new BaseTypeDeclaration() {TypeName = StandardTypeNames.Char, DataType = CharType.Instance}},
+                { "any", new BaseTypeDeclaration() {TypeName = StandardTypeNames.Any, DataType = AnyType.Instance}},
             };
         }
     }

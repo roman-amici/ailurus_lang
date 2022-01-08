@@ -63,5 +63,6 @@ namespace AilurusLang.Parsing.AST
         public static readonly TypeName StringName = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("string")) };
         public static readonly TypeName Char = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("char")) };
         public static readonly TypeName Error = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("error")) };
+        public static readonly TypeName Any = new BaseTypeName() { Name = new QualifiedName(Token.StaticIdentifier("any")) };
     }
 }

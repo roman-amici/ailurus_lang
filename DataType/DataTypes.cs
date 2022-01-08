@@ -8,6 +8,7 @@ namespace AilurusLang.DataType
     public abstract class AilurusDataType
     {
         public virtual string DataTypeName { get => GetType().ToString(); }
+        public virtual bool Concrete => true;
     }
 
     public class PlaceholderType : AilurusDataType
@@ -20,6 +21,14 @@ namespace AilurusLang.DataType
     {
         public static readonly VoidType Instance = new VoidType();
         public override string DataTypeName => "void";
+        public override bool Concrete => false;
+    }
+
+    public class AnyType : AilurusDataType
+    {
+        public static readonly AnyType Instance = new AnyType();
+        public override string DataTypeName => "any";
+        public override bool Concrete => false;
     }
 
     public class BooleanType : AilurusDataType
@@ -31,11 +40,15 @@ namespace AilurusLang.DataType
     public abstract class NumericType : AilurusDataType
     {
         public abstract uint NumBytes { get; }
+        public abstract uint IntegralBits { get; }
+        public abstract bool Signed { get; }
     }
 
     public abstract class IntegralType : NumericType
     {
-        public virtual bool Signed => false;
+        public override uint IntegralBits => Signed ? NumBytes * 8 - 1 : NumBytes * 8;
+
+        public override bool Signed => false;
 
         public static IntegralType IntegralTypeBySize(uint size, bool isSigned)
         {
@@ -55,7 +68,10 @@ namespace AilurusLang.DataType
         public override bool Signed => true;
     }
 
-    public abstract class FloatingPointType : NumericType { }
+    public abstract class FloatingPointType : NumericType
+    {
+        public override bool Signed => true;
+    }
 
     public class Signed8Type : SignedIntegralType
     {
@@ -124,9 +140,9 @@ namespace AilurusLang.DataType
     public class Float32Type : FloatingPointType
     {
         public readonly static Float32Type Instance = new Float32Type();
-        public override string DataTypeName => "f32";
 
         public override uint NumBytes => 4;
+        public override uint IntegralBits => 24; // Number of bits in fraction portion
     }
 
     public class Float64Type : FloatingPointType
@@ -135,6 +151,7 @@ namespace AilurusLang.DataType
         public override string DataTypeName => "f64";
 
         public override uint NumBytes => 8;
+        public override uint IntegralBits => 52;
     }
 
     public class SignedSizeType : IntegralType
@@ -143,6 +160,8 @@ namespace AilurusLang.DataType
         public readonly static SignedSizeType Instance = new SignedSizeType();
 
         public override uint NumBytes => MachineSize;
+
+        public override string DataTypeName => "isize";
 
         public IntegralType NextLargestType()
         {
@@ -157,6 +176,7 @@ namespace AilurusLang.DataType
         public readonly static UnsignedSizeType Instance = new UnsignedSizeType();
 
         public override uint NumBytes => MachineSize;
+        public override string DataTypeName => "usize";
         public IntegralType NextLargestType()
         {
             var size = MachineSize * 2;
@@ -219,7 +239,7 @@ namespace AilurusLang.DataType
     public interface IArrayLikeType
     {
         AilurusDataType ElementType { get; }
-        public bool IsVariable { get; set; }
+        bool IsVariable { get; set; }
     }
 
     public class ArrayType : AilurusDataType, IArrayLikeType
@@ -242,6 +262,7 @@ namespace AilurusLang.DataType
     {
         public static readonly ErrorType Instance = new ErrorType();
         public override string DataTypeName => "Error";
+        public override bool Concrete => false;
     }
 
     public class TupleType : AilurusDataType

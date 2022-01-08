@@ -8,7 +8,7 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
 {
     public class DynamicValueEvaluator : Evaluator
     {
-        bool IsSignedInteger(AilurusValue value)
+        public static bool IsSignedInteger(AilurusValue value)
         {
             return value.AssertType(Signed64Type.Instance) ||
                    value.AssertType(Signed32Type.Instance) ||
@@ -16,7 +16,7 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
                    value.AssertType(Signed8Type.Instance);
         }
 
-        bool IsUnsignedInteger(AilurusValue value)
+        public static bool IsUnsignedInteger(AilurusValue value)
         {
             return value.AssertType(Unsigned64Type.Instance) ||
                    value.AssertType(Unsigned32Type.Instance) ||
@@ -24,13 +24,13 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
                    value.AssertType(Unsigned8Type.Instance);
         }
 
-        bool IsFloatingPoint(AilurusValue value)
+        public static bool IsFloatingPoint(AilurusValue value)
         {
             return value.AssertType(Float32Type.Instance) ||
                    value.AssertType(Float64Type.Instance);
         }
 
-        bool IsNumeric(AilurusValue value)
+        public static bool IsNumeric(AilurusValue value)
         {
             return IsSignedInteger(value) || IsUnsignedInteger(value) || IsFloatingPoint(value);
         }
@@ -85,7 +85,7 @@ namespace AilurusLang.Interpreter.TreeWalker.Evaluators
             return val;
         }
 
-        void Upcast(AilurusValue value, out long longUp, out ulong ulongUp, out double doubleUp, out int which)
+        public static void Upcast(AilurusValue value, out long longUp, out ulong ulongUp, out double doubleUp, out int which)
         {
             longUp = default;
             ulongUp = default;

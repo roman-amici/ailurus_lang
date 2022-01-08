@@ -30,7 +30,9 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         // Configuration Options
         // TODO: move to own file
-        public bool PreventSignificanceLoss { get; set; }
+        public bool PreventImplicitSignificanceLoss { get; set; } = true;
+        public bool AllowPointerTypeErasure { get; set; }
+        public bool AllowExplicitConstCast { get; set; }
 
         public bool PlaceholdersResolved { get; set; }
 
@@ -659,7 +661,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
             else if (lhsType is NumericType lhsNumeric && rhsType is NumericType rhsNumeric)
             {
-                return CanCoerceNumericType(lhsNumeric, rhsNumeric);
+                return CanImplicitNumericCast(lhsNumeric, rhsNumeric);
             }
             else
             {
@@ -678,6 +680,12 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     errorMessage = "Cannot mutate constant pointer.";
                     return false;
                 }
+            }
+
+            if (!lhsType.Concrete)
+            {
+                errorMessage = $"Cannot instantiate a value of type '{lhsType.DataTypeName}' since it is not a concrete type.";
+                return false;
             }
 
             errorMessage = $"Cannot assign value of type {rhsType.DataTypeName} to value of type {lhsType.DataTypeName}.";
@@ -878,7 +886,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
             else if (t is Unsigned64Type)
             {
-                if (!PreventSignificanceLoss)
+                if (!PreventImplicitSignificanceLoss)
                 {
                     type = Signed64Type.Instance;
                 }
@@ -974,6 +982,82 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 }
             }
             return null;
+        }
+
+        bool CanImplicitNumericCast(NumericType fromN, NumericType toN)
+        {
+            if (!PreventImplicitSignificanceLoss)
+            {
+                return true;
+            }
+
+            if (fromN is FloatingPointType && toN is FloatingPointType)
+            {
+                return fromN.NumBytes <= toN.NumBytes;
+            }
+            else if (fromN is IntegralType fromI && toN is IntegralType toI)
+            {
+                // Can't convert a signed integer to an unsigned integer without cast 
+                if (fromI.Signed && !toI.Signed)
+                {
+                    return false;
+                }
+                else
+                {
+                    // Convert it if one can fit inside the other.
+                    return toI.IntegralBits <= fromI.IntegralBits;
+                }
+            }
+            else if (fromN is SignedIntegralType fromI2 && toN is FloatingPointType toF)
+            {
+                return fromI2.IntegralBits <= toF.IntegralBits;
+            }
+
+            return false;
+        }
+
+        bool CanImplicitCast(AilurusDataType fromType, AilurusDataType toType)
+        {
+            if (fromType is PointerType fromP &&
+                toType is PointerType toP &&
+                AllowPointerTypeErasure)
+            {
+                if (!(fromP.BaseType is AnyType))
+                {
+                    return false;
+                }
+
+                return fromP.IsVariable == toP.IsVariable;
+
+            }
+            else if (fromType is NumericType fromN && toType is NumericType toN)
+            {
+                return CanImplicitNumericCast(fromN, toN);
+            }
+
+            return false;
+        }
+
+        bool CanExplicitCast(AilurusDataType fromType, AilurusDataType toType)
+        {
+            if (CanImplicitCast(fromType, toType))
+            {
+                return true;
+            }
+
+            if (fromType is PointerType fromP && toType is PointerType toP)
+            {
+                var varMatch = AllowExplicitConstCast ? true : fromP.IsVariable == toP.IsVariable;
+                var typesMatch = AllowPointerTypeErasure ? true : TypesAreEqual(fromP, toP);
+                return varMatch && typesMatch;
+            }
+            else if (fromType is NumericType && toType is NumericType)
+            {
+                // Can explicit cast any numeric transformation
+                return true;
+            }
+
+            return false;
         }
 
         #endregion
@@ -1088,9 +1172,26 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     return ResolveVariantMemberAccess((VariantMemberAccess)expr);
                 case ExpressionType.VariantCheck:
                     return ResolveVariantCheck((VariantCheck)expr);
+                case ExpressionType.TypeCast:
+                    return ResolveTypeCast((TypeCast)expr);
                 default:
                     throw new NotImplementedException();
             }
+        }
+
+        AilurusDataType ResolveTypeCast(TypeCast cast)
+        {
+            var castToType = ResolveTypeName(cast.TypeName);
+            var exprType = ResolveExpression(cast.Left);
+
+            if (!CanExplicitCast(exprType, castToType))
+            {
+                Error($"Cannot convert type {exprType.DataTypeName} to {castToType.DataTypeName}", cast.SourceStart);
+                return ErrorType.Instance;
+            }
+
+            cast.DataType = castToType;
+            return cast.DataType;
         }
 
         AilurusDataType ResolveVariantCheck(VariantCheck expr)
@@ -2102,6 +2203,12 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 return;
             }
 
+            if (!assertedType.Concrete)
+            {
+                Error($"Unable to instantiate value of type '{assertedType.DataTypeName}' since it is not a concrete type.", let.SourceStart);
+                return;
+            }
+
             if (!CanAssignTo(assertedType, initializerType, false, out string errorMessage))
             {
                 Error(errorMessage, let.SourceStart);
@@ -2227,6 +2334,11 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             if (forEach.AssertedTypeName != null)
             {
                 assertedType = ResolveTypeName(forEach.AssertedTypeName);
+            }
+
+            if (!assertedType.Concrete)
+            {
+                Error($"Unable to instantiate value of type '{assertedType.DataTypeName}' since it is not a concrete type.", forEach.SourceStart);
             }
 
             bool canAssign = CanAssignTo(assertedType, elementType, false, out string errorMessage);
@@ -2578,10 +2690,16 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             {
                 if (structType.Definitions[fieldName] is PlaceholderType placeholder)
                 {
-                    structType.Definitions[fieldName] = placeholder.ResolvedType;
-                    if (placeholder.ResolvedType is ErrorType)
+                    var resolvedType = placeholder.ResolvedType;
+                    structType.Definitions[fieldName] = resolvedType;
+                    if (resolvedType is ErrorType)
                     {
                         hadError = true;
+                    }
+                    if (!resolvedType.Concrete)
+                    {
+                        // TODO: Get the right span for error reporting.
+                        Error($"Unable to instantiate value of type '{resolvedType.DataTypeName}' since it is not a concrete type.", s.SourceStart);
                     }
                 }
             }
@@ -2609,6 +2727,13 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     {
                         Error($"Unable to resolve type '{p.TypeName}'.", p.TypeName.Name.SourceStart);
                     }
+
+                }
+                var resolvedType = member.InnerType;
+                if (!resolvedType.Concrete)
+                {
+                    // TODO: Get the right span for error reporting.
+                    Error($"Unable to instantiate value of type '{resolvedType.DataTypeName}' since it is not a concrete type.", v.SourceStart);
                 }
             }
 

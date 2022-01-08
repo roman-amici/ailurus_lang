@@ -53,7 +53,7 @@
 			},
 			{
 				"name" : "keyword.other.ailurus",
-				"match" : "\\b(in|mod|lenOf|addrOf|varAddrOf|free|new|submodule|import|struct|variant|library)\\b"
+				"match" : "\\b(in|mod|lenOf|addrOf|varAddrOf|free|new|submodule|import|struct|variant|library|is|as)\\b"
 			}
 		]
 		},

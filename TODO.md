@@ -29,11 +29,12 @@
  20. Constant Expressions
  21. Function pointers as static types
  21. Import variable renaming
- 22. Type Casting
+ 22. ~~Type Casting~~
  23. Varargs via variants
  24. ~~Cleanup datatypes~~
   - ~~More number constant types~~
  25. Add bitshift and op= operators
+ 26. Literal aware constant assignment
 
 ## Front End Cleanup
 1. Synchronization
@@ -76,5 +77,6 @@
   - Fix issue with tuple type highlighting
   - Add hex and binary highlighting
   - Add is and as operators
+  - Add datatype modifier highlighting
  2. VSCode language server
  3. Build system and package manager

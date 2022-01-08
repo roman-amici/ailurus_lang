@@ -459,8 +459,15 @@ namespace AilurusLang.Interpreter.TreeWalker
                 ExpressionType.VariantConstructor => EvalVariantConstructor((VariantConstructor)expr),
                 ExpressionType.VariantMemberAccess => EvalVariantMemberAccess((VariantMemberAccess)expr),
                 ExpressionType.VariantCheck => EvalVariantCheck((VariantCheck)expr),
+                ExpressionType.TypeCast => EvalTypeCast((TypeCast)expr),
                 _ => throw new NotImplementedException(),
             };
+        }
+
+        AilurusValue EvalTypeCast(TypeCast expr)
+        {
+            // Dynamic handling will deal with this
+            return EvalExpression(expr.Left).CastTo(expr.DataType);
         }
 
         AilurusValue EvalVariantCheck(VariantCheck check)
