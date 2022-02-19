@@ -23,6 +23,7 @@ namespace AilurusLang.Scanning.BasicScanner
             Add("return", TokenType.Return);
             Add("foreach", TokenType.ForEach);
             Add("in", TokenType.In);
+            Add("default", TokenType.Default);
 
             // Values
             Add("null", TokenType.Null);

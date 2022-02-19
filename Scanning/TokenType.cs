@@ -33,6 +33,7 @@ namespace AilurusLang.Scanning
         Minus, // -
         Arrow, // ->
         BackwardArrow, // <-
+        FatArrow, // =>
         Amp, // &
         AmpAmp, // &&
         Bar, // |
@@ -68,6 +69,7 @@ namespace AilurusLang.Scanning
         Then,
         ForEach,
         In,
+        Default,
 
         // Values
         Null,

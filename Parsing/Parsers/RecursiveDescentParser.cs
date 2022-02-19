@@ -209,8 +209,8 @@ namespace AilurusLang.Parsing.Parsers
             return module;
         }
 
-        // Base rule for things like identifiers and constants
-        ExpressionNode Primary()
+        // Anything that can 
+        Literal MatchableLiteral()
         {
             // Constants
             if (Match(TokenType.Number))
@@ -267,6 +267,19 @@ namespace AilurusLang.Parsing.Parsers
                     DataType = NullType.Instance,
                     SourceStart = Previous
                 };
+            }
+
+            return null;
+        }
+
+        // Base rule for things like identifiers and constants
+        ExpressionNode Primary()
+        {
+
+            var matchable = MatchableLiteral();
+            if (matchable != null)
+            {
+                return matchable;
             }
 
             // Grouping or Tuple
@@ -894,40 +907,45 @@ namespace AilurusLang.Parsing.Parsers
 
         #region LValue
 
+        public ILValue TupleExpression()
+        {
+            var lParen = Previous;
+            var elements = new List<ExpressionNode>();
+            do
+            {
+                // LValues must be pure identifiers
+                var name = Consume(TokenType.Identifier, "Expected identifier.");
+                elements.Add(new Variable()
+                {
+                    Name = new QualifiedName(name),
+                    SourceStart = name
+                });
+            } while (Match(TokenType.Comma));
+
+            if (elements.Count < 2)
+            {
+                RaiseError(lParen, "Tuple type requires at lease two elements.");
+            }
+
+            Consume(TokenType.RightParen, "Expected ')' after tuple.");
+
+            return new TupleExpression()
+            {
+                Elements = elements
+            };
+        }
+
         public ILValue LValue()
         {
             // Tuple
             if (Match(TokenType.LeftParen))
             {
-                var lParen = Previous;
-                var elements = new List<ExpressionNode>();
-                do
-                {
-                    // LValues must be pure identifiers
-                    var name = Consume(TokenType.Identifier, "Expected identifier.");
-                    elements.Add(new Variable()
-                    {
-                        Name = new QualifiedName(name),
-                        SourceStart = name
-                    });
-                } while (Match(TokenType.Comma));
-
-                if (elements.Count < 2)
-                {
-                    RaiseError(lParen, "Tuple type requires at lease two elements.");
-                }
-
-                Consume(TokenType.RightParen, "Expected ')' after tuple.");
-
-                return new TupleExpression()
-                {
-                    Elements = elements
-                };
+                return TupleExpression();
             }
             else
             {
                 // LValues must be pure identifiers, not qualified names
-                var name = Consume(TokenType.Identifier, "Expected name after 'let'");
+                var name = Consume(TokenType.Identifier, "Expected name.");
 
                 return new Variable()
                 {
@@ -1276,8 +1294,93 @@ namespace AilurusLang.Parsing.Parsers
             {
                 return ForEachStatement();
             }
+            else if (Match(TokenType.Match))
+            {
+                return MatchStatement();
+            }
 
             return ExpressionStatement();
+        }
+
+        StatementNode MatchStatementPattern()
+        {
+            Consume(TokenType.FatArrow, "Expected '=>' in match arm.");
+
+            StatementNode pattern;
+            if (Match(TokenType.LeftBrace))
+            {
+                pattern = BlockStatement();
+            }
+            else
+            {
+                var expr = Expression();
+                var exprStatement = new ExpressionStatement()
+                {
+                    Expr = expr,
+                    SourceStart = expr.SourceStart
+                };
+                pattern = new BlockStatement()
+                {
+                    Statements = new List<StatementNode>() { exprStatement },
+                    SourceStart = expr.SourceStart
+                };
+            }
+
+            return pattern;
+        }
+
+        MatchStatement MatchStatement()
+        {
+            var matchKeyword = Previous;
+            var toMatch = Expression();
+
+            Consume(TokenType.LeftBrace, "Expected '{' after 'match'");
+
+            var patterns = new List<(IMatchable, StatementNode)>();
+            StatementNode defaultPattern = null;
+            while (!Match(TokenType.RightBrace))
+            {
+                if (Match(TokenType.Default))
+                {
+                    if (defaultPattern != null)
+                    {
+                        RaiseError(Previous, "More than one 'default' found in match statement.");
+                    }
+                    defaultPattern = MatchStatementPattern();
+                    continue;
+                }
+
+                IMatchable match = MatchableLiteral();
+
+                if (match == null)
+                {
+                    if (Match(TokenType.Identifier))
+                    {
+                        var name = Previous;
+                        var lValue = LValue();
+                        match = new VariantDestructure()
+                        {
+                            LValue = lValue,
+                            VariantName = name,
+                            SourceStart = name
+                        };
+                    }
+                    else
+                    {
+                        match = TupleExpression();
+                    }
+                }
+
+                var pattern = MatchStatementPattern();
+                patterns.Add((match, pattern));
+            }
+
+            return new MatchStatement()
+            {
+                SourceStart = matchKeyword,
+                ToMatch = toMatch,
+                Patterns = patterns
+            };
         }
 
         ForEachStatement ForEachStatement()

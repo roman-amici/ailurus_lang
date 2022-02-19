@@ -184,6 +184,10 @@ namespace AilurusLang.Scanning.BasicScanner
                     {
                         return CreateToken(TokenType.EqualEqual);
                     }
+                    else if (Match('>'))
+                    {
+                        return CreateToken(TokenType.FatArrow);
+                    }
                     else
                     {
                         return CreateToken(TokenType.Equal);

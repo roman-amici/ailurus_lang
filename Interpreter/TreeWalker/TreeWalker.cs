@@ -188,10 +188,42 @@ namespace AilurusLang.Interpreter.TreeWalker
                 case FreeStatement freeStatement:
                     EvalFreeStatement(freeStatement);
                     break;
+                case MatchStatement matchStatement:
+                    EvalMatchStatement(matchStatement);
+                    break;
                 default:
                     throw new NotImplementedException();
 
             }
+        }
+
+        void EvalMatchLiterals(MatchStatement match, AilurusValue toMatch)
+        {
+            foreach (var (matchable, statement) in match.Patterns)
+            {
+                var patternValue = EvalExpression((Literal)matchable);
+                if (Evaluator.EvalEquality(patternValue, toMatch, null).GetAs<bool>())
+                {
+                    EvalStatement(statement);
+                    return;
+                }
+            }
+
+            if (match.DefaultPattern != null)
+            {
+                EvalStatement(match.DefaultPattern);
+            }
+        }
+
+        void EvalMatchStatement(MatchStatement matchStatement)
+        {
+            var toMatch = EvalExpression(matchStatement.ToMatch);
+
+            if (matchStatement.PatternsAreLiterals)
+            {
+                EvalMatchLiterals(matchStatement, toMatch);
+            }
+
         }
 
         void EvalFreeStatement(FreeStatement freeStatement)

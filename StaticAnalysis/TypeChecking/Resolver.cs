@@ -669,6 +669,18 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             }
         }
 
+        bool CanCompareEquality(AilurusDataType t1, AilurusDataType t2)
+        {
+            if (t1 is NumericType && t2 is NumericType)
+            {
+                return true;
+            }
+            else
+            {
+                return TypesAreEqual(t1, t2);
+            }
+        }
+
         bool CanAssignTo(AilurusDataType lhsType, AilurusDataType rhsType, bool pointerAssign, out string errorMessage)
         {
             // Do we dereference before we assign?
@@ -798,6 +810,14 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             {
                 return ErrorType.Instance;
             }
+        }
+
+        bool IsMatchableLiteral(AilurusDataType type)
+        {
+            return (type is NumericType) ||
+                (type is BooleanType) ||
+                (type is StringType) ||
+                (type is CharType);
         }
 
         bool IsPointerType(AilurusDataType type)
@@ -2037,6 +2057,9 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 case StatementType.ForEach:
                     ResolveForEachStatement((ForEachStatement)statement);
                     break;
+                case StatementType.MatchStatement:
+                    ResolveMatchStatement((MatchStatement)statement);
+                    break;
                 default:
                     throw new NotImplementedException();
             }
@@ -2372,6 +2395,61 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             ResolveStatement(forEach.Body);
 
             EndScope();
+        }
+
+        void ResolveLiteralMatch(MatchStatement statement, AilurusDataType type)
+        {
+            statement.PatternsAreLiterals = true;
+            foreach (var (match, pattern) in statement.Patterns)
+            {
+                if (match is Literal l)
+                {
+                    var matchType = ResolveExpression(l);
+                    if (!CanCompareEquality(matchType, type))
+                    {
+                        Error($"Cannot match value of type '{type.DataTypeName}' with pattern of type '{matchType.DataTypeName}'.", match.SourceStart);
+                    }
+                }
+                else
+                {
+                    Error($"Pattern must be literal of type '{type.DataTypeName}'.", match.SourceStart);
+                }
+
+                ResolveStatement(pattern);
+            }
+
+            if (statement.DefaultPattern != null)
+            {
+                ResolveStatement(statement.DefaultPattern);
+            }
+        }
+
+        void ResolveVariantMatch(MatchStatement statement, VariantType type)
+        {
+
+        }
+
+        void ResolveTupleMatch(MatchStatement statement, TupleType type)
+        {
+
+        }
+
+        void ResolveMatchStatement(MatchStatement statement)
+        {
+            var exprType = ResolveExpression(statement.ToMatch);
+
+            if (IsMatchableLiteral(exprType))
+            {
+                ResolveLiteralMatch(statement, exprType);
+            }
+            else if (exprType is VariantType v)
+            {
+                ResolveVariantMatch(statement, v);
+            }
+            else if (exprType is TupleType t)
+            {
+                ResolveTupleMatch(statement, t);
+            }
         }
 
         #endregion

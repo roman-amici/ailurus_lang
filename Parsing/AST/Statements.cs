@@ -18,6 +18,7 @@ namespace AilurusLang.Parsing.AST
         Return,
         Free,
         ForEach,
+        MatchStatement,
         // Temp
         Print
     }
@@ -127,6 +128,17 @@ namespace AilurusLang.Parsing.AST
 
         // Resolved Members
         public bool IterateOverReference { get; set; }
+    }
+
+    public class MatchStatement : StatementNode
+    {
+        public MatchStatement() : base(StatementType.MatchStatement) { }
+
+        public ExpressionNode ToMatch { get; set; }
+        public List<(IMatchable, StatementNode)> Patterns { get; set; }
+        public StatementNode? DefaultPattern { get; set; }
+
+        public bool PatternsAreLiterals { get; set; }
     }
 
 }

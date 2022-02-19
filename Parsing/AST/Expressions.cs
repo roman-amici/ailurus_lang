@@ -47,22 +47,23 @@ namespace AilurusLang.Parsing.AST
         public AilurusDataType DataType { get; set; }
     }
 
-    public class Literal : ExpressionNode
+
+
+    public class Literal : ExpressionNode, IMatchable
     {
         public Literal() : base(ExpressionType.Literal) { }
+        public Literal(ExpressionType type) : base(type) { }
+
         public object Value { get; set; }
     }
 
-    public class NumberLiteral : ExpressionNode
+    public class NumberLiteral : Literal
     {
         public NumberLiteral() : base(ExpressionType.NumberLiteral) { }
         public string DataTypeString { get; set; }
         public string Number { get; set; }
         // 10 for decimal, 2 for binary, 16 for hex etc
         public int Base { get; set; }
-
-        // Computed property
-        public object Value { get; set; }
     }
 
     public class Unary : ExpressionNode
@@ -106,9 +107,21 @@ namespace AilurusLang.Parsing.AST
         public ExpressionNode FalseExpr { get; set; }
     }
 
-    public interface ILValue
+    public interface ILValue : IMatchable
     {
         Token SourceStart { get; set; }
+    }
+
+    public interface IMatchable
+    {
+        Token SourceStart { get; set; }
+    }
+
+    public class VariantDestructure : ASTNode, IMatchable
+    {
+        public Token VariantName { get; set; }
+
+        public ILValue LValue { get; set; }
     }
 
     public class Variable : ExpressionNode, ILValue
