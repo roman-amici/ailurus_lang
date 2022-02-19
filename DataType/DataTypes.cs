@@ -291,6 +291,8 @@ namespace AilurusLang.DataType
         public string MemberName { get; set; }
         public AilurusDataType InnerType { get; set; }
         public int MemberIndex { get; set; }
+
+        public override string DataTypeName => InnerType.DataTypeName;
     }
 
     public class EmptyVariantMemberType : AilurusDataType

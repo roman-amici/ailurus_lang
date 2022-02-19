@@ -1195,18 +1195,20 @@ namespace AilurusLang.Parsing.Parsers
 
             if (Match(TokenType.LeftBracket))
             {
+                var openBracket = Previous;
                 var innerTypeName = TypeName();
                 Consume(TokenType.RightBracket, "Expected ']' in type name.");
 
                 baseType = new ArrayTypeName()
                 {
                     BaseTypeName = innerTypeName,
-                    IsVariable = arrayModifier
+                    IsVariable = arrayModifier,
+                    OpenBracket = openBracket
                 };
             }
             else if (Match(TokenType.LeftParen))
             {
-                var parenOpen = Previous;
+                var openParen = Previous;
                 var tupleTypes = new List<TypeName>();
                 do
                 {
@@ -1216,14 +1218,15 @@ namespace AilurusLang.Parsing.Parsers
 
                 if (tupleTypes.Count < 2)
                 {
-                    RaiseError(parenOpen, "Tuple type must have at least 2 elements.");
+                    RaiseError(openParen, "Tuple type must have at least 2 elements.");
                 }
 
                 Consume(TokenType.RightParen, "Mismatched parenthesis.");
 
                 baseType = new TupleTypeName()
                 {
-                    ElementTypeNames = tupleTypes
+                    ElementTypeNames = tupleTypes,
+                    OpenParen = openParen
                 };
             }
             else
@@ -1357,17 +1360,20 @@ namespace AilurusLang.Parsing.Parsers
                     if (Match(TokenType.Identifier))
                     {
                         var name = Previous;
-                        var lValue = LValue();
+
+
+                        ILValue lValue = null;
+                        if (Peek.Type != TokenType.FatArrow)
+                        {
+                            lValue = LValue();
+                        }
+
                         match = new VariantDestructure()
                         {
                             LValue = lValue,
                             VariantName = name,
                             SourceStart = name
                         };
-                    }
-                    else
-                    {
-                        match = TupleExpression();
                     }
                 }
 

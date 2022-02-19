@@ -215,6 +215,32 @@ namespace AilurusLang.Interpreter.TreeWalker
             }
         }
 
+        void EvalMatchVariants(MatchStatement match, VariantInstance toMatch)
+        {
+            var matchMemberName = toMatch.VariantMemberType.MemberName;
+            foreach (var (matchable, statement) in match.Patterns)
+            {
+                var matchableVariant = matchable as VariantDestructure;
+                if (matchMemberName == matchableVariant.VariantName.Identifier)
+                {
+                    PushBlockEnvironment();
+
+                    if (matchableVariant.LValue != null)
+                    {
+                        AssignLValue(matchableVariant.LValue, toMatch.Value.Value.ByValue());
+                    }
+                    EvalStatement(statement);
+                    PopBlockEnvironment();
+                    return;
+                }
+            }
+
+            if (match.DefaultPattern != null)
+            {
+                EvalStatement(match.DefaultPattern);
+            }
+        }
+
         void EvalMatchStatement(MatchStatement matchStatement)
         {
             var toMatch = EvalExpression(matchStatement.ToMatch);
@@ -223,7 +249,10 @@ namespace AilurusLang.Interpreter.TreeWalker
             {
                 EvalMatchLiterals(matchStatement, toMatch);
             }
-
+            else
+            {
+                EvalMatchVariants(matchStatement, toMatch.GetAs<VariantInstance>());
+            }
         }
 
         void EvalFreeStatement(FreeStatement freeStatement)
@@ -422,15 +451,9 @@ namespace AilurusLang.Interpreter.TreeWalker
             Console.WriteLine($"{value}");
         }
 
-        void EvalLetStatement(LetStatement stmt)
+        void AssignLValue(ILValue assignmentTarget, AilurusValue initializer)
         {
-            AilurusValue initializer = null;
-            if (stmt.Initializer != null)
-            {
-                initializer = EvalExpression(stmt.Initializer);
-            }
-
-            if (stmt.AssignmentTarget is TupleExpression tupleVariables)
+            if (assignmentTarget is TupleExpression tupleVariables)
             {
                 var tupleInitializer = initializer.GetAs<TupleInstance>();
                 for (var i = 0; i < tupleVariables.Elements.Count; i++)
@@ -442,12 +465,24 @@ namespace AilurusLang.Interpreter.TreeWalker
                     env.SetValue(resolution, value);
                 }
             }
-            else if (stmt.AssignmentTarget is Variable variable)
+            else if (assignmentTarget is Variable variable)
             {
                 var resolution = variable.Resolution as VariableResolution;
                 var env = GetEnvironmentForVariableResolution(resolution);
                 env.SetValue(resolution, initializer);
             }
+        }
+
+        void EvalLetStatement(LetStatement stmt)
+        {
+            AilurusValue initializer = null;
+            if (stmt.Initializer != null)
+            {
+                initializer = EvalExpression(stmt.Initializer);
+            }
+
+            AssignLValue(stmt.AssignmentTarget, initializer);
+
         }
 
         void EvalBlockStatement(BlockStatement block)

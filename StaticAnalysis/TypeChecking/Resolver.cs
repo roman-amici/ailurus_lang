@@ -1593,6 +1593,10 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     Error($"Not all fields were initialized for struct '{structName}'.", expr.StructName.SourceStart);
                 }
             }
+            else if (type is ErrorType)
+            {
+                Error($"Could not resolve struct type {expr.StructName}", expr.StructName.SourceStart);
+            }
             else
             {
                 Error($"Expected struct type but found type {type.DataTypeName}.", expr.StructName.SourceStart);
@@ -2073,7 +2077,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 assertedType = ResolveTypeName(assertedTypeName);
                 if (assertedType is ErrorType)
                 {
-                    Error($"Asserted type '{assertedTypeName.Name}' could not be found.", assertedTypeName.Name.SourceStart);
+                    Error($"Asserted type '{assertedTypeName.Name}' could not be found.", assertedTypeName.SourceStart);
                 }
             }
 
@@ -2226,6 +2230,12 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 return;
             }
 
+            if (assertedType is ErrorType)
+            {
+                Error($"Unable to resolve type '{assertedType.DataTypeName}'.", let.SourceStart);
+                return;
+            }
+
             if (!assertedType.Concrete)
             {
                 Error($"Unable to instantiate value of type '{assertedType.DataTypeName}' since it is not a concrete type.", let.SourceStart);
@@ -2359,7 +2369,11 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                 assertedType = ResolveTypeName(forEach.AssertedTypeName);
             }
 
-            if (!assertedType.Concrete)
+            if (assertedType is ErrorType)
+            {
+                Error($"Unable to resolve type '{assertedType.DataTypeName}'.", forEach.SourceStart);
+            }
+            else if (!assertedType.Concrete)
             {
                 Error($"Unable to instantiate value of type '{assertedType.DataTypeName}' since it is not a concrete type.", forEach.SourceStart);
             }
@@ -2426,12 +2440,42 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
         void ResolveVariantMatch(MatchStatement statement, VariantType type)
         {
+            foreach (var (match, pattern) in statement.Patterns)
+            {
+                BeginScope();
+                if (match is VariantDestructure v)
+                {
+                    var variantName = v.VariantName.Identifier;
+                    if (type.Members.ContainsKey(variantName))
+                    {
+                        if (v.LValue != null)
+                        {
+                            var memberType = type.Members[variantName].InnerType;
+                            if (!(memberType is ErrorType))
+                            {
+                                DeclareLValue(v.LValue, memberType, false, true, false);
+                            }
 
-        }
+                        }
+                    }
+                    else
+                    {
+                        Error($"Variant name '{v.VariantName.Identifier}' not found in type '{type.DataTypeName}'.", v.SourceStart);
+                    }
+                }
+                else
+                {
+                    Error("Pattern be a variant name.", match.SourceStart);
+                }
 
-        void ResolveTupleMatch(MatchStatement statement, TupleType type)
-        {
+                ResolveStatement(pattern);
+                EndScope();
+            }
 
+            if (statement.DefaultPattern != null)
+            {
+                ResolveStatement(statement.DefaultPattern);
+            }
         }
 
         void ResolveMatchStatement(MatchStatement statement)
@@ -2445,10 +2489,6 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
             else if (exprType is VariantType v)
             {
                 ResolveVariantMatch(statement, v);
-            }
-            else if (exprType is TupleType t)
-            {
-                ResolveTupleMatch(statement, t);
             }
         }
 
@@ -2743,7 +2783,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
 
             if (aliasType.BaseType is ErrorType)
             {
-                Error($"Unable to declare type alias {alias.AliasName.Identifier}. Could not resolve type name {alias.AliasedTypeName.Name}", alias.AliasName);
+                Error($"Unable to declare type alias {alias.AliasName.Identifier}. Could not resolve type name {alias.AliasedTypeName.SourceStart}", alias.AliasName);
             }
 
             alias.State = TypeDeclaration.ResolutionState.Resolved;
@@ -2774,7 +2814,7 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     {
                         hadError = true;
                     }
-                    if (!resolvedType.Concrete)
+                    else if (!resolvedType.Concrete)
                     {
                         // TODO: Get the right span for error reporting.
                         Error($"Unable to instantiate value of type '{resolvedType.DataTypeName}' since it is not a concrete type.", s.SourceStart);
@@ -2803,7 +2843,8 @@ namespace AilurusLang.StaticAnalysis.TypeChecking
                     member.InnerType = ResolvePlaceholder(p);
                     if (member.InnerType is ErrorType)
                     {
-                        Error($"Unable to resolve type '{p.TypeName}'.", p.TypeName.Name.SourceStart);
+                        Error($"Unable to resolve type '{member.DataTypeName}'.", p.TypeName.SourceStart);
+                        continue;
                     }
 
                 }

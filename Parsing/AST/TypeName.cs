@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using AilurusLang.Scanning;
 
@@ -6,6 +7,7 @@ namespace AilurusLang.Parsing.AST
     public abstract class TypeName
     {
         public virtual QualifiedName Name { get; set; }
+        public virtual Token SourceStart { get => Name?.SourceStart; }
     }
 
     public class BaseTypeName : TypeName
@@ -22,11 +24,17 @@ namespace AilurusLang.Parsing.AST
         }
         public TypeName BaseTypeName { get; set; }
         public bool IsVariable { get; set; }
+
+        public Token OpenBracket { get; set; }
+        public override Token SourceStart { get => OpenBracket; }
     }
 
     public class TupleTypeName : TypeName
     {
         public List<TypeName> ElementTypeNames { get; set; }
+
+        public Token OpenParen { get; set; }
+        public override Token SourceStart { get => OpenParen; }
     }
 
     public class PointerTypeName : TypeName
